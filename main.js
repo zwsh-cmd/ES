@@ -137,32 +137,48 @@ const MarkdownEditorModal = ({ note, existingNotes = [], isNew = false, onClose,
                 
                 <div className="p-4 flex-col flex flex-1 overflow-y-auto custom-scrollbar gap-4">
                     <div className="grid grid-cols-2 gap-3">
-                        {/* 修改 4: 大分類輸入框改為使用 datalist */}
-                        <div>
+                        {/* 大分類：輸入框 + 快速選擇選單 */}
+                        <div className="flex flex-col gap-1">
                             <input 
-                                list="category-list"
                                 placeholder="大分類 (如：故事結構)"
                                 className="w-full bg-stone-50 border border-stone-200 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-stone-400"
                                 value={formData.category}
                                 onChange={(e) => setFormData({...formData, category: e.target.value})}
                             />
-                            <datalist id="category-list">
-                                {existingCategories.map(c => <option key={c} value={c} />)}
-                            </datalist>
+                            {existingCategories.length > 0 && (
+                                <select 
+                                    className="bg-stone-100 text-xs text-stone-500 p-2 rounded-lg outline-none border border-transparent hover:border-stone-300 transition-colors cursor-pointer"
+                                    onChange={(e) => {
+                                        if(e.target.value) setFormData({...formData, category: e.target.value});
+                                    }}
+                                    value=""
+                                >
+                                    <option value="" disabled>▼ 點此從現有分類選擇...</option>
+                                    {existingCategories.map(c => <option key={c} value={c}>{c}</option>)}
+                                </select>
+                            )}
                         </div>
                         
-                        {/* 修改 5: 次分類輸入框改為使用 datalist */}
-                        <div>
+                        {/* 次分類：輸入框 + 快速選擇選單 */}
+                        <div className="flex flex-col gap-1">
                              <input 
-                                list="subcategory-list"
                                 placeholder="次分類 (如：三幕劇)"
                                 className="w-full bg-stone-50 border border-stone-200 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-stone-400"
                                 value={formData.subcategory}
                                 onChange={(e) => setFormData({...formData, subcategory: e.target.value})}
                             />
-                            <datalist id="subcategory-list">
-                                {existingSubcategories.map(s => <option key={s} value={s} />)}
-                            </datalist>
+                            {existingSubcategories.length > 0 && (
+                                <select 
+                                    className="bg-stone-100 text-xs text-stone-500 p-2 rounded-lg outline-none border border-transparent hover:border-stone-300 transition-colors cursor-pointer"
+                                    onChange={(e) => {
+                                        if(e.target.value) setFormData({...formData, subcategory: e.target.value});
+                                    }}
+                                    value=""
+                                >
+                                    <option value="" disabled>▼ 點此從現有次分類選擇...</option>
+                                    {existingSubcategories.map(s => <option key={s} value={s}>{s}</option>)}
+                                </select>
+                            )}
                         </div>
                     </div>
                     <input 
@@ -764,5 +780,6 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 

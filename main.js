@@ -148,24 +148,33 @@ const MarkdownEditorModal = ({ note, existingNotes = [], isNew = false, onClose,
         const start = textarea.selectionStart;
         const end = textarea.selectionEnd;
         const text = formData.content;
+        
+        // 1. 先取得目前被反白選取的文字
+        const selectedText = text.substring(start, end);
+        
         let newText = "";
         let newCursorPos = 0;
 
         if (syntax === "h1") {
-            newText = text.substring(0, start) + "# " + text.substring(end);
-            newCursorPos = start + 2;
+            // 在選取文字前加上 "# "，保留原文字
+            newText = text.substring(0, start) + "# " + selectedText + text.substring(end);
+            newCursorPos = start + 2 + selectedText.length;
         } else if (syntax === "h2") {
-            newText = text.substring(0, start) + "## " + text.substring(end);
-            newCursorPos = start + 3;
+            // 在選取文字前加上 "## "，保留原文字
+            newText = text.substring(0, start) + "## " + selectedText + text.substring(end);
+            newCursorPos = start + 3 + selectedText.length;
         } else if (syntax === "bold") {
-            newText = text.substring(0, start) + "**" + text.substring(start, end) + "**" + text.substring(end);
-            newCursorPos = end + 4; 
+            // 粗體原本就是對的，但為了統一邏輯我們也寫清楚
+            newText = text.substring(0, start) + "**" + selectedText + "**" + text.substring(end);
+            newCursorPos = start + 4 + selectedText.length; 
         } else if (syntax === "quote") {
-            newText = text.substring(0, start) + "> " + text.substring(end);
-            newCursorPos = start + 2;
+            // 在選取文字前加上 "> "，保留原文字
+            newText = text.substring(0, start) + "> " + selectedText + text.substring(end);
+            newCursorPos = start + 2 + selectedText.length;
         }
 
         setFormData({ ...formData, content: newText });
+        // 設定游標位置停留在修改後的文字後方
         setTimeout(() => { textarea.focus(); textarea.setSelectionRange(newCursorPos, newCursorPos); }, 10);
     };
 
@@ -799,6 +808,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

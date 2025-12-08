@@ -32,16 +32,16 @@ const Quote = (props) => <IconBase d={["M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-
 
 // === 2. 初始編劇筆記資料庫 ===
 const INITIAL_NOTES = [
-    { id: 1, title: "故事結構", subtitle: "三幕劇", section: "第一幕：鋪陳", content: "在第一幕中，必須建立主角的現狀（Normal World），並引入『引發事件』（Inciting Incident），這通常發生在故事的前10-15%。這個事件打破了主角的平衡，迫使他們做出選擇。" },
-    { id: 2, title: "人物塑造", subtitle: "角色弧光", section: "內在需求 vs 外在慾望", content: "一個立體的角色通常擁有一個明確的『外在慾望』（Want），例如贏得比賽或復仇；但他們同時有一個隱藏的『內在需求』（Need），通常是他們自己沒意識到的性格缺陷。故事的終點，往往是角色犧牲了慾望，滿足了需求。" },
-    { id: 3, title: "對白技巧", subtitle: "潛台詞", section: "不要說出心裡話", content: "優秀的對白是『言不由衷』的。角色很少直接說出他們真正的感受。如果一對情侶在吵架，他們爭論的可能是誰沒洗碗，但潛台詞其實是『我覺得你不夠重視這個家』。" },
-    { id: 4, title: "場景設計", subtitle: "進出原則", section: "晚進早出", content: "盡可能晚地進入場景（Late In），在衝突發生前的一刻切入；並盡可能早地離開場景（Early Out），在懸念或衝突最高點結束，不要拖泥帶水地交代結尾。" },
-    { id: 5, title: "故事結構", subtitle: "救貓咪", section: "定場畫面", content: "故事的第一個畫面應該暗示整部電影的主題、氛圍和風格。它是一個視覺隱喻，告訴觀眾這是一個什麼樣的故事。" },
-    { id: 6, title: "人物塑造", subtitle: "反派", section: "反派是自己故事裡的英雄", content: "不要把反派寫成只會作惡的壞人。在反派的眼裡，他們所做的一切都是合理、必要，甚至是正義的。給他們一個強大的動機，主角的對抗才會有力。" },
-    { id: 7, title: "情節推動", subtitle: "轉折點", section: "無路可退", content: "第一幕結束進入第二幕的轉折點（Plot Point 1），主角必須主動做出決定跨越門檻。這個決定必須是不可逆的，他們不能再回頭過原本的生活。" },
-    { id: 8, title: "寫作心法", subtitle: "初稿", section: "容許垃圾", content: "海明威說：『初稿都是狗屎。』寫作的重點是『寫完』，而不是寫好。不要邊寫邊修，先把故事從頭到尾寫出來，讓它存在，然後再像雕刻一樣慢慢修正。" },
-    { id: 9, title: "對白技巧", subtitle: "展現而非告知", section: "Show, Don't Tell", content: "與其讓角色說『我很生氣』，不如讓他用力摔門，或是手顫抖著點不著煙。用動作和視覺細節來傳達情緒，永遠比對白更有力。" },
-    { id: 10, title: "故事結構", subtitle: "英雄旅程", section: "拒絕召喚", content: "當冒險的召喚來臨時，英雄通常會先拒絕。這展現了他們對未知的恐懼，也讓他們隨後的接受變得更加勇敢且有意義。" },
+    { id: 1, category: "故事結構", subcategory: "三幕劇", title: "第一幕：鋪陳", content: "在第一幕中，必須建立主角的現狀（Normal World），並引入『引發事件』（Inciting Incident），這通常發生在故事的前10-15%。這個事件打破了主角的平衡，迫使他們做出選擇。" },
+    { id: 2, category: "人物塑造", subcategory: "角色弧光", title: "內在需求 vs 外在慾望", content: "一個立體的角色通常擁有一個明確的『外在慾望』（Want），例如贏得比賽或復仇；但他們同時有一個隱藏的『內在需求』（Need），通常是他們自己沒意識到的性格缺陷。故事的終點，往往是角色犧牲了慾望，滿足了需求。" },
+    { id: 3, category: "對白技巧", subcategory: "潛台詞", title: "不要說出心裡話", content: "優秀的對白是『言不由衷』的。角色很少直接說出他們真正的感受。如果一對情侶在吵架，他們爭論的可能是誰沒洗碗，但潛台詞其實是『我覺得你不夠重視這個家』。" },
+    { id: 4, category: "場景設計", subcategory: "進出原則", title: "晚進早出", content: "盡可能晚地進入場景（Late In），在衝突發生前的一刻切入；並盡可能早地離開場景（Early Out），在懸念或衝突最高點結束，不要拖泥帶水地交代結尾。" },
+    { id: 5, category: "故事結構", subcategory: "救貓咪", title: "定場畫面", content: "故事的第一個畫面應該暗示整部電影的主題、氛圍和風格。它是一個視覺隱喻，告訴觀眾這是一個什麼樣的故事。" },
+    { id: 6, category: "人物塑造", subcategory: "反派", title: "反派是自己故事裡的英雄", content: "不要把反派寫成只會作惡的壞人。在反派的眼裡，他們所做的一切都是合理、必要，甚至是正義的。給他們一個強大的動機，主角的對抗才會有力。" },
+    { id: 7, category: "情節推動", subcategory: "轉折點", title: "無路可退", content: "第一幕結束進入第二幕的轉折點（Plot Point 1），主角必須主動做出決定跨越門檻。這個決定必須是不可逆的，他們不能再回頭過原本的生活。" },
+    { id: 8, category: "寫作心法", subcategory: "初稿", title: "容許垃圾", content: "海明威說：『初稿都是狗屎。』寫作的重點是『寫完』，而不是寫好。不要邊寫邊修，先把故事從頭到尾寫出來，讓它存在，然後再像雕刻一樣慢慢修正。" },
+    { id: 9, category: "對白技巧", subcategory: "展現而非告知", title: "Show, Don't Tell", content: "與其讓角色說『我很生氣』，不如讓他用力摔門，或是手顫抖著點不著煙。用動作和視覺細節來傳達情緒，永遠比對白更有力。" },
+    { id: 10, category: "故事結構", subcategory: "英雄旅程", title: "拒絕召喚", content: "當冒險的召喚來臨時，英雄通常會先拒絕。這展現了他們對未知的恐懼，也讓他們隨後的接受變得更加勇敢且有意義。" },
 ];
 
 // === 3. 錯誤邊界組件 ===
@@ -57,11 +57,11 @@ class ErrorBoundary extends React.Component {
 
 // === 4. Markdown 編輯器組件 (支援工具列) ===
 const MarkdownEditorModal = ({ note, isNew = false, onClose, onSave }) => {
-    // 編輯器狀態
+    // 編輯器狀態：對應新的資料結構 category, subcategory, title
     const [formData, setFormData] = useState({
+        category: note?.category || "",
+        subcategory: note?.subcategory || "",
         title: note?.title || "",
-        subtitle: note?.subtitle || "",
-        section: note?.section || "",
         content: note?.content || ""
     });
 
@@ -87,15 +87,13 @@ const MarkdownEditorModal = ({ note, isNew = false, onClose, onSave }) => {
             newCursorPos = start + 3;
         } else if (syntax === "bold") {
             newText = text.substring(0, start) + "**" + text.substring(start, end) + "**" + text.substring(end);
-            newCursorPos = end + 4; // 把游標放在加粗文字後
+            newCursorPos = end + 4; 
         } else if (syntax === "quote") {
             newText = text.substring(0, start) + "> " + text.substring(end);
             newCursorPos = start + 2;
         }
 
         setFormData({ ...formData, content: newText });
-        
-        // 重新聚焦並設定游標位置 (需要一點延遲等待 React 渲染)
         setTimeout(() => {
             textarea.focus();
             textarea.setSelectionRange(newCursorPos, newCursorPos);
@@ -103,14 +101,14 @@ const MarkdownEditorModal = ({ note, isNew = false, onClose, onSave }) => {
     };
 
     const handleSave = () => {
-        if (!formData.section || !formData.content) {
-            alert("請至少填寫小標題和內容");
+        if (!formData.title || !formData.content) {
+            alert("請至少填寫標題和內容");
             return;
         }
         onSave({ 
             ...note, 
             ...formData, 
-            id: note?.id || Date.now() // 新筆記給新 ID
+            id: note?.id || Date.now()
         });
     };
 
@@ -124,26 +122,26 @@ const MarkdownEditorModal = ({ note, isNew = false, onClose, onSave }) => {
                 </nav>
                 
                 <div className="p-4 flex-col flex flex-1 overflow-y-auto custom-scrollbar gap-4">
-                    {/* Metadata 輸入區 */}
+                    {/* Metadata 輸入區：改為大分類、次分類 */}
                     <div className="grid grid-cols-2 gap-3">
                         <input 
-                            placeholder="大標題 (如：故事結構)"
+                            placeholder="大分類 (如：故事結構)"
                             className="bg-stone-50 border border-stone-200 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-stone-400"
-                            value={formData.title}
-                            onChange={(e) => setFormData({...formData, title: e.target.value})}
+                            value={formData.category}
+                            onChange={(e) => setFormData({...formData, category: e.target.value})}
                         />
                          <input 
-                            placeholder="中標題 (如：三幕劇)"
+                            placeholder="次分類 (如：三幕劇)"
                             className="bg-stone-50 border border-stone-200 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-stone-400"
-                            value={formData.subtitle}
-                            onChange={(e) => setFormData({...formData, subtitle: e.target.value})}
+                            value={formData.subcategory}
+                            onChange={(e) => setFormData({...formData, subcategory: e.target.value})}
                         />
                     </div>
                     <input 
-                        placeholder="小標題 (必填，如：引發事件)"
+                        placeholder="大標題 (必填，如：第一幕：鋪陳)"
                         className="bg-stone-50 border border-stone-200 rounded-lg p-3 font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-stone-400"
-                        value={formData.section}
-                        onChange={(e) => setFormData({...formData, section: e.target.value})}
+                        value={formData.title}
+                        onChange={(e) => setFormData({...formData, title: e.target.value})}
                     />
 
                     {/* Markdown 工具列 */}
@@ -401,13 +399,7 @@ function EchoScriptApp() {
         showNotification("回應已儲存至收藏");
     };
 
-    const handleCopyMarkdown = () => {
-        if (!currentNote) return;
-        const md = `# ${currentNote.title}\n## ${currentNote.subtitle} - ${currentNote.section}\n\n${currentNote.content}\n\n> 來自 EchoScript 編劇靈感庫`;
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(md).then(() => showNotification("已複製 Markdown")).catch(() => showNotification("複製失敗"));
-        }
-    };
+    const md = `# ${currentNote.category} / ${currentNote.subcategory}\n## ${currentNote.title}\n\n${currentNote.content}\n\n> 來自 EchoScript 編劇靈感庫`;
 
     // --- 備份還原 ---
     const handleBackup = () => {
@@ -457,26 +449,13 @@ function EchoScriptApp() {
     // --- 渲染組件 ---
     
     // 列表項目 (給收藏與歷史使用)
-    const NoteListItem = ({ item, isHistory }) => (
-        <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-3" onClick={() => {
-            // 切換到該筆記
-            const idx = notes.findIndex(n => n.id === item.id);
-            if(idx !== -1) {
-                setCurrentIndex(idx);
-                setShowMenuModal(false);
-                window.scrollTo(0,0);
-            } else {
-                showNotification("該筆記已不在資料庫中");
-            }
-        }}>
-            <div className="flex justify-between items-start mb-2">
-                <div>
-                    <span className="text-xs font-bold text-stone-500 bg-stone-100 px-2 py-1 rounded">{item.title}</span>
-                    <span className="text-xs text-gray-400 ml-2">{item.subtitle}</span>
-                </div>
+    {/* 改成顯示分類 */}
+                <span className="text-xs font-bold text-stone-500 bg-stone-100 px-2 py-1 rounded">{item.category}</span>
+                <span className="text-xs text-gray-400 ml-2">{item.subcategory}</span>
             </div>
-            <h4 className="font-bold text-gray-800 mb-1">{item.section}</h4>
-            <p className="text-sm text-gray-600 line-clamp-2">{item.content}</p>
+        </div>
+        {/* 改成顯示大標題 */}
+        <h4 className="font-bold text-gray-800 mb-1">{item.title}</h4>
             {item.journalEntry && (
                 <div className="mt-3 pt-2 border-t border-gray-50">
                     <p className="text-xs text-stone-500 font-bold flex items-center gap-1"><PenLine className="w-3 h-3"/> 我的回應</p>
@@ -518,19 +497,18 @@ function EchoScriptApp() {
                             {/* 卡片頭部線條裝飾 */}
                             <div className="h-2 bg-stone-800 w-full"></div>
                             <div className="p-8 flex-1 flex flex-col">
-                                {/* 標題區 */}
-                                <div className="mb-6 border-b border-stone-100 pb-4">
-                                    <div className="flex justify-between items-baseline mb-1">
-                                        <h2 className="text-sm font-bold text-stone-400 tracking-widest uppercase">{currentNote.title || "未分類"}</h2>
-                                        <span className="text-xs text-stone-300 font-serif">#{currentNote.id.toString().slice(-3)}</span>
-                                    </div>
-                                    <h3 className="text-xl font-serif text-stone-600 italic">{currentNote.subtitle}</h3>
-                                </div>
-                                
-                                {/* 內容區 (支援簡易 Markdown 渲染效果) */}
-                                <div className="flex-1">
-                                    <h1 className="text-2xl font-bold text-stone-900 mb-4">{currentNote.section}</h1>
-                                    <div className="text-lg leading-loose text-stone-700 font-serif text-justify whitespace-pre-wrap">
+                                {/* 1. 把 title 改成 category */}
+                                <h2 className="text-sm font-bold text-stone-400 tracking-widest uppercase">{currentNote.category || "未分類"}</h2>
+                                <span className="text-xs text-stone-300 font-serif">#{currentNote.id.toString().slice(-3)}</span>
+                            </div>
+                            {/* 2. 把 subtitle 改成 subcategory */}
+                            <h3 className="text-xl font-serif text-stone-600 italic">{currentNote.subcategory}</h3>
+                        </div>
+
+                        {/* 內容區 */}
+                        <div className="flex-1">
+                            {/* 3. 把 section 改成 title */}
+                            <h1 className="text-2xl font-bold text-stone-900 mb-4">{currentNote.title}</h1>
                                         {/* 簡單的 Markdown 渲染邏輯，避免引入外部庫增加大小 */}
                                         {currentNote.content.split('\n').map((line, i) => {
                                             if (line.startsWith('# ')) return <h1 key={i} className="text-2xl font-bold mt-4 mb-2">{line.slice(2)}</h1>;
@@ -676,3 +654,4 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+

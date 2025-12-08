@@ -57,6 +57,64 @@ class ErrorBoundary extends React.Component {
 
 // === 4. Markdown 編輯器組件 ===
 // 修改 1: 加入 existingNotes 參數
+// === 新增：Combobox 合體輸入元件 (解決分類被過濾問題) ===
+const Combobox = ({ value, onChange, options, placeholder }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const wrapperRef = useRef(null);
+
+    // 點擊外部自動關閉選單
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
+
+    return (
+        <div className="relative" ref={wrapperRef}>
+            <div className="relative">
+                <input 
+                    className="w-full bg-stone-50 border border-stone-200 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-stone-400 pr-8"
+                    placeholder={placeholder}
+                    value={value}
+                    onChange={(e) => onChange(e.target.value)}
+                    onFocus={() => setIsOpen(true)} 
+                />
+                {/* 下拉箭頭按鈕：點擊切換顯示所有選項 */}
+                <button 
+                    className="absolute right-0 top-0 h-full px-3 text-stone-400 hover:text-stone-600 flex items-center justify-center"
+                    onClick={() => setIsOpen(!isOpen)}
+                    tabIndex="-1" // 避免 Tab 鍵卡住
+                >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                </button>
+            </div>
+            
+            {/* 下拉選單：永遠顯示所有選項，不隨輸入過濾 */}
+            {isOpen && options.length > 0 && (
+                <div className="absolute top-full left-0 w-full bg-white border border-stone-200 rounded-lg shadow-xl max-h-48 overflow-y-auto z-50 mt-1 animate-in fade-in duration-100">
+                    {options.map(opt => (
+                        <div 
+                            key={opt} 
+                            className="px-4 py-2 hover:bg-stone-100 cursor-pointer text-sm text-stone-700 border-b border-stone-50 last:border-0"
+                            onClick={() => {
+                                onChange(opt);
+                                setIsOpen(false);
+                            }}
+                        >
+                            {opt}
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+};
+
+// === 4. Markdown 編輯器組件 (已更新使用 Combobox) ===
 const MarkdownEditorModal = ({ note, existingNotes = [], isNew = false, onClose, onSave }) => {
     const [formData, setFormData] = useState({
         category: note?.category || "",
@@ -65,14 +123,16 @@ const MarkdownEditorModal = ({ note, existingNotes = [], isNew = false, onClose,
         content: note?.content || ""
     });
 
-    // 修改 2: 計算現有的分類建議清單
+    // 計算建議清單
     const existingCategories = useMemo(() => {
         return [...new Set(existingNotes.map(n => n.category).filter(Boolean))];
     }, [existingNotes]);
 
-    // 修改 3: 根據目前輸入的大分類，動態篩選出對應的次分類建議
     const existingSubcategories = useMemo(() => {
-        if (!formData.category) return []; // 如果沒選大分類，暫時不顯示次分類建議，避免混亂
+        // 這裡可以選擇是否要根據大分類過濾。
+        // 如果您希望次分類也能看到「所有曾經出現過的次分類」，可以把 filter 拿掉。
+        // 目前保留 filter 比較符合邏輯：選了「故事結構」只出現相關的次分類。
+        if (!formData.category) return []; 
         return [...new Set(existingNotes
             .filter(n => n.category === formData.category)
             .map(n => n.subcategory)
@@ -85,11 +145,9 @@ const MarkdownEditorModal = ({ note, existingNotes = [], isNew = false, onClose,
     const insertMarkdown = (syntax) => {
         const textarea = contentRef.current;
         if (!textarea) return;
-
         const start = textarea.selectionStart;
         const end = textarea.selectionEnd;
         const text = formData.content;
-        
         let newText = "";
         let newCursorPos = 0;
 
@@ -108,22 +166,12 @@ const MarkdownEditorModal = ({ note, existingNotes = [], isNew = false, onClose,
         }
 
         setFormData({ ...formData, content: newText });
-        setTimeout(() => {
-            textarea.focus();
-            textarea.setSelectionRange(newCursorPos, newCursorPos);
-        }, 10);
+        setTimeout(() => { textarea.focus(); textarea.setSelectionRange(newCursorPos, newCursorPos); }, 10);
     };
 
     const handleSave = () => {
-        if (!formData.title || !formData.content) {
-            alert("請至少填寫標題和內容");
-            return;
-        }
-        onSave({ 
-            ...note, 
-            ...formData, 
-            id: note?.id || Date.now()
-        });
+        if (!formData.title || !formData.content) { alert("請至少填寫標題和內容"); return; }
+        onSave({ ...note, ...formData, id: note?.id || Date.now() });
     };
 
     return (
@@ -137,50 +185,21 @@ const MarkdownEditorModal = ({ note, existingNotes = [], isNew = false, onClose,
                 
                 <div className="p-4 flex-col flex flex-1 overflow-y-auto custom-scrollbar gap-4">
                     <div className="grid grid-cols-2 gap-3">
-                        {/* 大分類：輸入框 + 快速選擇選單 */}
-                        <div className="flex flex-col gap-1">
-                            <input 
-                                placeholder="大分類 (如：故事結構)"
-                                className="w-full bg-stone-50 border border-stone-200 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-stone-400"
-                                value={formData.category}
-                                onChange={(e) => setFormData({...formData, category: e.target.value})}
-                            />
-                            {existingCategories.length > 0 && (
-                                <select 
-                                    className="bg-stone-100 text-xs text-stone-500 p-2 rounded-lg outline-none border border-transparent hover:border-stone-300 transition-colors cursor-pointer"
-                                    onChange={(e) => {
-                                        if(e.target.value) setFormData({...formData, category: e.target.value});
-                                    }}
-                                    value=""
-                                >
-                                    <option value="" disabled>▼ 點此從現有分類選擇...</option>
-                                    {existingCategories.map(c => <option key={c} value={c}>{c}</option>)}
-                                </select>
-                            )}
-                        </div>
-                        
-                        {/* 次分類：輸入框 + 快速選擇選單 */}
-                        <div className="flex flex-col gap-1">
-                             <input 
-                                placeholder="次分類 (如：三幕劇)"
-                                className="w-full bg-stone-50 border border-stone-200 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-stone-400"
-                                value={formData.subcategory}
-                                onChange={(e) => setFormData({...formData, subcategory: e.target.value})}
-                            />
-                            {existingSubcategories.length > 0 && (
-                                <select 
-                                    className="bg-stone-100 text-xs text-stone-500 p-2 rounded-lg outline-none border border-transparent hover:border-stone-300 transition-colors cursor-pointer"
-                                    onChange={(e) => {
-                                        if(e.target.value) setFormData({...formData, subcategory: e.target.value});
-                                    }}
-                                    value=""
-                                >
-                                    <option value="" disabled>▼ 點此從現有次分類選擇...</option>
-                                    {existingSubcategories.map(s => <option key={s} value={s}>{s}</option>)}
-                                </select>
-                            )}
-                        </div>
+                        {/* 使用新的合體 Combobox */}
+                        <Combobox 
+                            placeholder="大分類 (如:故事結構)"
+                            value={formData.category}
+                            onChange={(val) => setFormData(prev => ({...prev, category: val}))}
+                            options={existingCategories}
+                        />
+                        <Combobox 
+                            placeholder="次分類 (如:三幕劇)"
+                            value={formData.subcategory}
+                            onChange={(val) => setFormData(prev => ({...prev, subcategory: val}))}
+                            options={existingSubcategories}
+                        />
                     </div>
+
                     <input 
                         placeholder="大標題 (必填，如：第一幕：鋪陳)"
                         className="bg-stone-50 border border-stone-200 rounded-lg p-3 font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-stone-400"
@@ -780,6 +799,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

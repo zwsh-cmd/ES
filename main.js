@@ -140,6 +140,7 @@ const Combobox = ({ value, onChange, options, placeholder }) => {
 };
 
 // === 新增：HighlightingEditor (支援編輯時高亮的編輯器) ===
+// === 修改後：HighlightingEditor (修復游標錯位版) ===
 const HighlightingEditor = ({ value, onChange, textareaRef }) => {
     // 這個函式負責把 markdown 語法轉成有顏色的 HTML (僅供顯示用)
     const renderHighlights = (text) => {
@@ -147,14 +148,15 @@ const HighlightingEditor = ({ value, onChange, textareaRef }) => {
         const textToRender = text.endsWith('\n') ? text + ' ' : text;
         
         return textToRender.split('\n').map((line, i) => {
+            // 關鍵修改：確保每一行的基礎高度一致，不要隨意改變 text size
             let className = "min-h-[1.5em] ";
             let content = line;
 
-            // 處理標題 (整行變大)
+            // 處理標題：改為「變色 + 加粗」，但保持「字體大小一致」以維持游標對齊
             if (line.startsWith('# ')) {
-                className += "text-2xl font-bold text-stone-900";
+                className += "font-black text-stone-900 bg-stone-100/50"; // 使用極粗體和底色來強調
             } else if (line.startsWith('## ')) {
-                className += "text-xl font-bold text-stone-800";
+                className += "font-bold text-stone-800 bg-stone-50/50"; // 使用粗體來強調
             } else if (line.startsWith('> ')) {
                 className += "italic text-stone-400 border-l-4 border-stone-300 pl-2";
             } else {
@@ -162,7 +164,6 @@ const HighlightingEditor = ({ value, onChange, textareaRef }) => {
             }
 
             // 簡單處理行內的粗體 (將 **text** 包在 span 裡)
-            // 注意：這裡只做簡單的 regex 取代，不支援太複雜的巢狀
             const parts = content.split(/(\*\*.*?\*\*|~~.*?~~)/g);
             const renderedLine = parts.map((part, idx) => {
                 if (part.startsWith('**') && part.endsWith('**')) {
@@ -903,6 +904,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

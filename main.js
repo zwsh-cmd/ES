@@ -238,29 +238,56 @@ const MarkdownEditorModal = ({ note, existingNotes = [], isNew = false, onClose,
     const insertMarkdown = (syntax) => {
         const textarea = contentRef.current;
         if (!textarea) return;
-        const start = textarea.selectionStart;
-        const end = textarea.selectionEnd;
+
         const text = formData.content;
-        const selectedText = text.substring(start, end);
+        const start = textarea.selectionStart; // 游標起點
+        const end = textarea.selectionEnd;     // 游標終點
+
         let newText = "";
         let newCursorPos = 0;
 
-        if (syntax === "h1") {
-            newText = text.substring(0, start) + "# " + selectedText + text.substring(end);
-            newCursorPos = start + 2 + selectedText.length;
-        } else if (syntax === "h2") {
-            newText = text.substring(0, start) + "## " + selectedText + text.substring(end);
-            newCursorPos = start + 3 + selectedText.length;
-        } else if (syntax === "bold") {
+        // 邏輯分流：粗體針對「選取範圍」，其他針對「整行」
+        if (syntax === "bold") {
+            const selectedText = text.substring(start, end);
+            // 粗體維持原樣：在選取文字前後加星星
             newText = text.substring(0, start) + "**" + selectedText + "**" + text.substring(end);
-            newCursorPos = start + 4 + selectedText.length; 
-        } else if (syntax === "quote") {
-            newText = text.substring(0, start) + "> " + selectedText + text.substring(end);
-            newCursorPos = start + 2 + selectedText.length;
+            newCursorPos = end + 4; // 游標停在粗體後
+        } else {
+            // H1, H2, 引用：針對「游標所在的整行」操作
+            
+            // 1. 找出該行的「開頭」 (往回找換行符號)
+            // 如果 lastIndexOf 找不到會回傳 -1，所以 +1 剛好是 0 (文章開頭)
+            const lineStart = text.lastIndexOf('\n', start - 1) + 1;
+            
+            // 2. 找出該行的「結尾」 (往後找換行符號)
+            let lineEnd = text.indexOf('\n', start);
+            if (lineEnd === -1) lineEnd = text.length; // 如果找不到，代表是最後一行
+
+            // 3. 取得該行目前的內容
+            const lineContent = text.substring(lineStart, lineEnd);
+
+            // 4. 清理該行原本可能有的 Markdown 符號 (避免變成 # # 標題)
+            // Regex 意思：移除開頭的 (#號加空白) 或 (>號加空白)
+            const cleanContent = lineContent.replace(/^(\#+\s|>\s)/, '');
+
+            // 5. 決定要加上什麼前綴
+            let prefix = "";
+            if (syntax === "h1") prefix = "# ";
+            if (syntax === "h2") prefix = "## ";
+            if (syntax === "quote") prefix = "> ";
+
+            // 6. 組合新字串： (文章前半段) + (新前綴 + 乾淨的行內容) + (文章後半段)
+            newText = text.substring(0, lineStart) + prefix + cleanContent + text.substring(lineEnd);
+
+            // 7. 設定游標停在該行修改後的末端
+            newCursorPos = lineStart + prefix.length + cleanContent.length;
         }
 
         setFormData({ ...formData, content: newText });
-        setTimeout(() => { textarea.focus(); textarea.setSelectionRange(newCursorPos, newCursorPos); }, 10);
+        setTimeout(() => { 
+            textarea.focus(); 
+            textarea.setSelectionRange(newCursorPos, newCursorPos); 
+        }, 10);
     };
 
     const handleSave = () => {
@@ -904,6 +931,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

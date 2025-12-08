@@ -1,8 +1,8 @@
-// === EchoScript: Screenwriting Inspiration App ===
-const { useState, useEffect, useCallback, useMemo } = React;
+// === EchoScript v2.0: 包含新增、Markdown編輯與總覽功能 ===
+const { useState, useEffect, useRef, useCallback } = React;
 const { createRoot } = ReactDOM;
 
-// === 1. 圖示組件 (SVG) ===
+// === 1. 圖示組件庫 (擴充版) ===
 const IconBase = ({ d, className, ...props }) => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} {...props}>
         {Array.isArray(d) ? d.map((path, i) => <path key={i} d={path} />) : <path d={d} />}
@@ -16,17 +16,21 @@ const X = (props) => <IconBase d={["M18 6 6 18", "M6 6 18 18"]} {...props} />;
 const Trash2 = (props) => <IconBase d={["M3 6h18", "M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6", "M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2", "M10 11v6", "M14 11v6"]} {...props} />;
 const History = (props) => <IconBase d={["M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z", "M12 6v6l4 2"]} {...props} />;
 const Clock = (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>;
-const Calendar = (props) => <IconBase d={["M8 2v4", "M16 2v4", "M3 10h18", "M21 8a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8z"]} {...props} />;
 const PenLine = (props) => <IconBase d={["M12 20h9", "M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"]} {...props} />;
 const Save = (props) => <IconBase d={["M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z", "M17 21v-8H7v8", "M7 3v5h8"]} {...props} />;
 const RefreshCw = (props) => <IconBase d={["M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8", "M21 3v5h-5", "M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16", "M8 16H3v5"]} {...props} />;
 const Edit = (props) => <IconBase d={["M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7", "M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"]} {...props} />;
 const Download = (props) => <IconBase d={["M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4", "M7 10l5 5 5-5", "M12 15V3"]} {...props} />;
 const Upload = (props) => <IconBase d={["M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4", "M17 8l-5-5-5 5", "M12 3v12"]} {...props} />;
-const Eye = (props) => <IconBase d={["M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z", "M12 5c-3.866 0-7 3.134-7 7s3.134 7 7 7 7-3.134 7-7-3.134-7-7-7zm0 12c-2.761 0-5-2.239-5-5s2.239-5 5-5 5 2.239 5 5-2.239 5-5 5z", "M12 10c-1.105 0-2 .895-2 2s.895 2 2 2 2-.895 2-2-.895-2-2-2z"]} {...props} />;
 const FileText = (props) => <IconBase d={["M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z", "M14 2v6h6", "M16 13H8", "M16 17H8", "M10 9H8"]} {...props} />;
+const Plus = (props) => <IconBase d={["M12 5v14", "M5 12h14"]} {...props} />;
+const List = (props) => <IconBase d={["M8 6h13", "M8 12h13", "M8 18h13", "M3 6h.01", "M3 12h.01", "M3 18h.01"]} {...props} />;
+const Bold = (props) => <IconBase d={["M6 4h8a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z", "M6 12h9a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"]} {...props} />;
+const Heading1 = (props) => <IconBase d={["M4 12h8", "M4 18V6", "M12 18V6", "M21 18l-4-12-4 12"]} {...props} />; // 簡化的H示意
+const Quote = (props) => <IconBase d={["M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V20c0 1 0 1 1 1z", "M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V20c0 1 0 1 1 1z"]} {...props} />;
 
-// === 2. 初始編劇筆記資料庫 (可自行擴充) ===
+
+// === 2. 初始編劇筆記資料庫 ===
 const INITIAL_NOTES = [
     { id: 1, title: "故事結構", subtitle: "三幕劇", section: "第一幕：鋪陳", content: "在第一幕中，必須建立主角的現狀（Normal World），並引入『引發事件』（Inciting Incident），這通常發生在故事的前10-15%。這個事件打破了主角的平衡，迫使他們做出選擇。" },
     { id: 2, title: "人物塑造", subtitle: "角色弧光", section: "內在需求 vs 外在慾望", content: "一個立體的角色通常擁有一個明確的『外在慾望』（Want），例如贏得比賽或復仇；但他們同時有一個隱藏的『內在需求』（Need），通常是他們自己沒意識到的性格缺陷。故事的終點，往往是角色犧牲了慾望，滿足了需求。" },
@@ -51,48 +55,120 @@ class ErrorBoundary extends React.Component {
   }
 }
 
-// === 4. 實用函數 ===
-const formatDateTime = (dateInput) => {
-    if (!dateInput) return "";
-    try {
-        const date = new Date(dateInput);
-        if (isNaN(date.getTime())) return "";
-        return new Intl.DateTimeFormat('zh-TW', {
-            year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false
-        }).format(date);
-    } catch (e) { return ""; }
-};
+// === 4. Markdown 編輯器組件 (支援工具列) ===
+const MarkdownEditorModal = ({ note, isNew = false, onClose, onSave }) => {
+    // 編輯器狀態
+    const [formData, setFormData] = useState({
+        title: note?.title || "",
+        subtitle: note?.subtitle || "",
+        section: note?.section || "",
+        content: note?.content || ""
+    });
 
-// === 5. 編輯筆記視窗 (修改筆記內容) ===
-const EditNoteModal = ({ note, onClose, onSave }) => {
-    const [editedContent, setEditedContent] = useState(note.content);
-    
+    const contentRef = useRef(null);
+
+    // 插入 Markdown 語法
+    const insertMarkdown = (syntax) => {
+        const textarea = contentRef.current;
+        if (!textarea) return;
+
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        const text = formData.content;
+        
+        let newText = "";
+        let newCursorPos = 0;
+
+        if (syntax === "h1") {
+            newText = text.substring(0, start) + "# " + text.substring(end);
+            newCursorPos = start + 2;
+        } else if (syntax === "h2") {
+            newText = text.substring(0, start) + "## " + text.substring(end);
+            newCursorPos = start + 3;
+        } else if (syntax === "bold") {
+            newText = text.substring(0, start) + "**" + text.substring(start, end) + "**" + text.substring(end);
+            newCursorPos = end + 4; // 把游標放在加粗文字後
+        } else if (syntax === "quote") {
+            newText = text.substring(0, start) + "> " + text.substring(end);
+            newCursorPos = start + 2;
+        }
+
+        setFormData({ ...formData, content: newText });
+        
+        // 重新聚焦並設定游標位置 (需要一點延遲等待 React 渲染)
+        setTimeout(() => {
+            textarea.focus();
+            textarea.setSelectionRange(newCursorPos, newCursorPos);
+        }, 10);
+    };
+
+    const handleSave = () => {
+        if (!formData.section || !formData.content) {
+            alert("請至少填寫小標題和內容");
+            return;
+        }
+        onSave({ 
+            ...note, 
+            ...formData, 
+            id: note?.id || Date.now() // 新筆記給新 ID
+        });
+    };
+
     return (
         <div className="fixed inset-0 z-50 bg-stone-900/60 backdrop-blur-sm flex justify-center items-end sm:items-center p-0 sm:p-4 animate-in fade-in duration-200" onClick={(e) => { if(e.target === e.currentTarget) onClose(); }}>
-            <div className="bg-white w-full max-w-lg h-[85%] sm:h-auto sm:max-h-[85vh] rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col">
+            <div className="bg-white w-full max-w-lg h-[90%] sm:h-auto sm:max-h-[90vh] rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col">
                 <nav className="flex justify-between items-center p-4 border-b border-gray-100">
                     <button onClick={onClose} className="text-gray-500 hover:text-gray-800 px-2">取消</button>
-                    <h3 className="font-bold text-gray-800">修改筆記內容</h3>
-                    <button onClick={() => onSave(note.id, editedContent)} className="bg-stone-800 text-white px-4 py-1.5 rounded-full text-sm font-bold">儲存</button>
+                    <h3 className="font-bold text-gray-800">{isNew ? "新增筆記" : "修改筆記"}</h3>
+                    <button onClick={handleSave} className="bg-stone-800 text-white px-4 py-1.5 rounded-full text-sm font-bold">儲存</button>
                 </nav>
-                <div className="p-6 flex-col flex flex-1 overflow-y-auto">
-                    <div className="mb-4 text-sm text-gray-400">
-                        <span className="font-bold text-stone-600">{note.title}</span> / {note.subtitle} / {note.section}
+                
+                <div className="p-4 flex-col flex flex-1 overflow-y-auto custom-scrollbar gap-4">
+                    {/* Metadata 輸入區 */}
+                    <div className="grid grid-cols-2 gap-3">
+                        <input 
+                            placeholder="大標題 (如：故事結構)"
+                            className="bg-stone-50 border border-stone-200 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-stone-400"
+                            value={formData.title}
+                            onChange={(e) => setFormData({...formData, title: e.target.value})}
+                        />
+                         <input 
+                            placeholder="中標題 (如：三幕劇)"
+                            className="bg-stone-50 border border-stone-200 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-stone-400"
+                            value={formData.subtitle}
+                            onChange={(e) => setFormData({...formData, subtitle: e.target.value})}
+                        />
                     </div>
-                    <label className="text-xs font-bold text-gray-400 mb-2 uppercase tracking-wider">原始文本內容</label>
-                    <textarea 
-                        className="flex-1 w-full bg-gray-50 border border-gray-200 rounded-xl p-4 text-gray-800 text-lg leading-relaxed focus:ring-2 focus:ring-stone-400 focus:bg-white transition-all outline-none resize-none"
-                        value={editedContent}
-                        onChange={(e) => setEditedContent(e.target.value)}
+                    <input 
+                        placeholder="小標題 (必填，如：引發事件)"
+                        className="bg-stone-50 border border-stone-200 rounded-lg p-3 font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-stone-400"
+                        value={formData.section}
+                        onChange={(e) => setFormData({...formData, section: e.target.value})}
                     />
-                    <p className="text-xs text-stone-500 mt-2 text-center">這將會永久修改此卡片在您裝置上的內容。</p>
+
+                    {/* Markdown 工具列 */}
+                    <div className="flex gap-2 py-2 border-t border-b border-stone-100 overflow-x-auto">
+                        <button onClick={() => insertMarkdown('h1')} className="p-2 hover:bg-stone-100 rounded text-stone-600 flex items-center gap-1 text-xs font-bold" title="大標"><Heading1 className="w-4 h-4"/> 大標</button>
+                        <button onClick={() => insertMarkdown('h2')} className="p-2 hover:bg-stone-100 rounded text-stone-600 flex items-center gap-1 text-xs font-bold" title="小標"><Heading1 className="w-3 h-3"/> 小標</button>
+                        <button onClick={() => insertMarkdown('bold')} className="p-2 hover:bg-stone-100 rounded text-stone-600 flex items-center gap-1 text-xs font-bold" title="粗體"><Bold className="w-4 h-4"/> 粗體</button>
+                        <button onClick={() => insertMarkdown('quote')} className="p-2 hover:bg-stone-100 rounded text-stone-600 flex items-center gap-1 text-xs font-bold" title="引用"><Quote className="w-4 h-4"/> 引用</button>
+                    </div>
+
+                    {/* 內容輸入區 */}
+                    <textarea 
+                        ref={contentRef}
+                        className="flex-1 w-full bg-white p-2 text-gray-800 text-lg leading-relaxed outline-none resize-none min-h-[200px]"
+                        placeholder="輸入內容... 支援 Markdown 語法"
+                        value={formData.content}
+                        onChange={(e) => setFormData({...formData, content: e.target.value})}
+                    />
                 </div>
             </div>
         </div>
     );
 };
 
-// === 6. 編輯回應視窗 (撰寫日記) ===
+// === 5. 回應編輯視窗 ===
 const ResponseModal = ({ note, initialResponse, onClose, onSave }) => {
     const [response, setResponse] = useState(initialResponse);
     return (
@@ -119,77 +195,128 @@ const ResponseModal = ({ note, initialResponse, onClose, onSave }) => {
     );
 };
 
+// === 6. 所有筆記列表 Modal (Library View) ===
+const AllNotesModal = ({ notes, onClose, onItemClick, onDelete }) => {
+    const [searchTerm, setSearchTerm] = useState("");
+    
+    const filteredNotes = notes.filter(n => 
+        n.title.includes(searchTerm) || 
+        n.section.includes(searchTerm) || 
+        n.content.includes(searchTerm)
+    );
+
+    return (
+        <div className="fixed inset-0 z-40 bg-stone-50 flex flex-col animate-in slide-in-from-right duration-300">
+            <div className="p-4 border-b border-stone-200 bg-white flex justify-between items-center sticky top-0 z-10">
+                <h2 className="font-bold text-lg flex items-center gap-2"><List className="w-5 h-5"/> 所有筆記 ({notes.length})</h2>
+                <button onClick={onClose} className="p-2 bg-stone-100 rounded-full"><X className="w-5 h-5 text-gray-600" /></button>
+            </div>
+            
+            <div className="p-4 bg-stone-50 sticky top-[69px] z-10">
+                <input 
+                    type="text" 
+                    placeholder="搜尋筆記..." 
+                    className="w-full bg-white border border-stone-200 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-stone-400"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                />
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4 custom-scrollbar pb-20">
+                {filteredNotes.map(item => (
+                    <div key={item.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-3 active:scale-[0.99] transition-transform" 
+                         onClick={() => onItemClick(item)}>
+                        <div className="flex justify-between items-start mb-2">
+                            <div>
+                                <span className="text-xs font-bold text-stone-500 bg-stone-100 px-2 py-1 rounded">{item.title || "未分類"}</span>
+                                <span className="text-xs text-gray-400 ml-2">{item.subtitle}</span>
+                            </div>
+                            <button onClick={(e) => { e.stopPropagation(); onDelete(item.id); }} className="text-stone-300 hover:text-red-500 p-1">
+                                <Trash2 className="w-4 h-4"/>
+                            </button>
+                        </div>
+                        <h4 className="font-bold text-gray-800 mb-1">{item.section}</h4>
+                        <p className="text-sm text-gray-600 line-clamp-2">{item.content}</p>
+                    </div>
+                ))}
+                {filteredNotes.length === 0 && <div className="text-center text-gray-400 mt-10">沒有找到相關筆記</div>}
+            </div>
+        </div>
+    );
+};
+
 
 // === 主程式 ===
 function EchoScriptApp() {
-    const [notes, setNotes] = useState(INITIAL_NOTES);
+    // 核心狀態：所有的筆記 (不再分開儲存修改)
+    const [notes, setNotes] = useState([]);
     const [currentIndex, setCurrentIndex] = useState(0);
     const [isAnimating, setIsAnimating] = useState(false);
     
     // 用戶資料狀態
     const [favorites, setFavorites] = useState([]); // 收藏 (包含回應)
     const [history, setHistory] = useState([]);
-    const [recentIndices, setRecentIndices] = useState([]);
-    const [userModifiedNotes, setUserModifiedNotes] = useState({}); // 格式: { noteId: "new content" }
+    const [recentIndices, setRecentIndices] = useState([]); // 用來隨機不重複
 
     // UI 狀態
-    const [showMenuModal, setShowMenuModal] = useState(false);
-    const [activeTab, setActiveTab] = useState('favorites');
-    const [showEditNoteModal, setShowEditNoteModal] = useState(false);
+    const [showMenuModal, setShowMenuModal] = useState(false); // 收藏/歷史/備份選單
+    const [showAllNotesModal, setShowAllNotesModal] = useState(false); // 所有筆記選單
+    const [showEditModal, setShowEditModal] = useState(false); // 編輯/新增視窗
+    const [isCreatingNew, setIsCreatingNew] = useState(false); // 是否為新增模式
     const [showResponseModal, setShowResponseModal] = useState(false);
+    const [activeTab, setActiveTab] = useState('favorites');
     const [notification, setNotification] = useState(null);
 
     // 手勢狀態
     const [touchStart, setTouchStart] = useState(null);
     const [touchCurrent, setTouchCurrent] = useState(null);
 
-    // 1. 初始化資料載入
+    // 1. 初始化資料載入 (關鍵修改：統一使用 LocalStorage 作為單一真理來源)
     useEffect(() => {
         try {
-            const savedFavs = JSON.parse(localStorage.getItem('echoScript_Favorites') || '[]');
-            const savedHistory = JSON.parse(localStorage.getItem('echoScript_History') || '[]');
-            const savedRecents = JSON.parse(localStorage.getItem('echoScript_Recents') || '[]');
-            const savedMods = JSON.parse(localStorage.getItem('echoScript_UserMods') || '{}');
+            // 載入所有筆記
+            const savedNotes = JSON.parse(localStorage.getItem('echoScript_AllNotes'));
+            
+            let finalNotes;
+            if (savedNotes && savedNotes.length > 0) {
+                finalNotes = savedNotes;
+            } else {
+                // 第一次使用，載入預設資料並存入
+                finalNotes = INITIAL_NOTES;
+                localStorage.setItem('echoScript_AllNotes', JSON.stringify(finalNotes));
+            }
+            setNotes(finalNotes);
 
-            setFavorites(savedFavs);
-            setHistory(savedHistory);
-            setRecentIndices(savedRecents);
-            setUserModifiedNotes(savedMods);
-
-            // 合併使用者修改過的筆記
-            const mergedNotes = INITIAL_NOTES.map(note => ({
-                ...note,
-                content: savedMods[note.id] || note.content
-            }));
-            setNotes(mergedNotes);
+            // 載入其他用戶資料
+            setFavorites(JSON.parse(localStorage.getItem('echoScript_Favorites') || '[]'));
+            setHistory(JSON.parse(localStorage.getItem('echoScript_History') || '[]'));
+            setRecentIndices(JSON.parse(localStorage.getItem('echoScript_Recents') || '[]'));
 
             // 隨機選一個初始筆記
-            let initialIndex = 0;
-            let attempts = 0;
-            do {
-                initialIndex = Math.floor(Math.random() * mergedNotes.length);
-                attempts++;
-            } while (savedRecents.includes(initialIndex) && attempts < 50);
-
-            setCurrentIndex(initialIndex);
-            
-            // 加入歷史
-            const initialNote = mergedNotes[initialIndex];
-            const historyEntry = { ...initialNote, timestamp: new Date().toISOString(), displayId: Date.now() };
-            setHistory(prev => [historyEntry, ...prev].slice(0, 50));
+            if (finalNotes.length > 0) {
+                const idx = Math.floor(Math.random() * finalNotes.length);
+                setCurrentIndex(idx);
+                addToHistory(finalNotes[idx]);
+            }
 
         } catch (e) {
             console.error("Init failed", e);
         }
     }, []);
 
-    // 2. 自動存檔
+    // 2. 自動存檔監聽
+    useEffect(() => { localStorage.setItem('echoScript_AllNotes', JSON.stringify(notes)); }, [notes]);
     useEffect(() => { localStorage.setItem('echoScript_Favorites', JSON.stringify(favorites)); }, [favorites]);
     useEffect(() => { localStorage.setItem('echoScript_History', JSON.stringify(history)); }, [history]);
     useEffect(() => { localStorage.setItem('echoScript_Recents', JSON.stringify(recentIndices)); }, [recentIndices]);
-    useEffect(() => { localStorage.setItem('echoScript_UserMods', JSON.stringify(userModifiedNotes)); }, [userModifiedNotes]);
 
     const showNotification = (msg) => { setNotification(msg); setTimeout(() => setNotification(null), 3000); };
+
+    const addToHistory = (note) => {
+        if(!note) return;
+        const entry = { ...note, timestamp: new Date().toISOString(), displayId: Date.now() };
+        setHistory(prev => [entry, ...prev].slice(0, 50));
+    };
 
     const currentNote = notes[currentIndex];
     const currentFav = favorites.find(f => f.id === (currentNote ? currentNote.id : null));
@@ -198,6 +325,7 @@ function EchoScriptApp() {
     // --- 核心操作 ---
 
     const handleNextNote = () => {
+        if (notes.length <= 1) return;
         setIsAnimating(true);
         setTimeout(() => {
             let newIndex; 
@@ -214,33 +342,42 @@ function EchoScriptApp() {
             });
 
             setCurrentIndex(newIndex);
-            
-            // 加入歷史
-            const newNote = notes[newIndex];
-            const historyEntry = { ...newNote, timestamp: new Date().toISOString(), displayId: Date.now() };
-            setHistory(prev => [historyEntry, ...prev].slice(0, 50));
+            addToHistory(notes[newIndex]);
             
             setIsAnimating(false);
             window.scrollTo(0,0);
         }, 300);
     };
 
-    const handleEditNoteSave = (id, newContent) => {
-        // 1. 更新本地修改紀錄
-        const updatedMods = { ...userModifiedNotes, [id]: newContent };
-        setUserModifiedNotes(updatedMods);
-        
-        // 2. 更新當前記憶體中的 Notes
-        const updatedNotes = notes.map(n => n.id === id ? { ...n, content: newContent } : n);
-        setNotes(updatedNotes);
+    // 新增與修改筆記 (統一處理)
+    const handleSaveNote = (updatedNote) => {
+        if (isCreatingNew) {
+            // 新增模式
+            setNotes(prev => [updatedNote, ...prev]);
+            setCurrentIndex(0); // 顯示最新的這張
+            showNotification("新筆記已建立");
+        } else {
+            // 修改模式
+            setNotes(prev => prev.map(n => n.id === updatedNote.id ? updatedNote : n));
+            // 同步更新收藏與歷史中的內容顯示 (可選)
+            setFavorites(prev => prev.map(f => f.id === updatedNote.id ? { ...f, ...updatedNote } : f));
+            showNotification("筆記已更新");
+        }
+        setShowEditModal(false);
+    };
 
-        // 3. 如果這則筆記在收藏中，也要同步更新收藏的內容顯示嗎？
-        // 策略：收藏通常是 snapshot，但因為是筆記工具，同步更新比較符合邏輯
-        setFavorites(prev => prev.map(f => f.id === id ? { ...f, content: newContent } : f));
-        setHistory(prev => prev.map(h => h.id === id ? { ...h, content: newContent } : h));
-
-        setShowEditNoteModal(false);
-        showNotification("筆記內容已修改");
+    const handleDeleteNote = (id) => {
+        if (confirm("確定要刪除這則筆記嗎？此動作無法復原。")) {
+            const newNotes = notes.filter(n => n.id !== id);
+            setNotes(newNotes);
+            
+            // 如果刪除的是當前顯示的，切換到下一張
+            if (currentNote && currentNote.id === id) {
+                const nextIdx = newNotes.length > 0 ? 0 : -1;
+                setCurrentIndex(nextIdx);
+            }
+            showNotification("筆記已刪除");
+        }
     };
 
     const handleResponseSave = (responseText) => {
@@ -253,27 +390,15 @@ function EchoScriptApp() {
         setFavorites(prev => {
             const existingIdx = prev.findIndex(f => f.id === currentNote.id);
             if (existingIdx > -1) {
-                // 更新現有收藏
                 const newList = [...prev];
                 newList[existingIdx] = entry;
                 return newList;
             } else {
-                // 新增收藏
                 return [entry, ...prev];
             }
         });
         setShowResponseModal(false);
         showNotification("回應已儲存至收藏");
-    };
-
-    const handleToggleFavorite = () => {
-        if (isFavorite) {
-            setFavorites(prev => prev.filter(f => f.id !== currentNote.id));
-            showNotification("已移除收藏");
-        } else {
-            // 加入空回應的收藏
-            handleResponseSave("");
-        }
     };
 
     const handleCopyMarkdown = () => {
@@ -286,7 +411,8 @@ function EchoScriptApp() {
 
     // --- 備份還原 ---
     const handleBackup = () => {
-        const data = { favorites, userModifiedNotes, history, version: "EchoScript_v1", date: new Date().toISOString() };
+        // 現在備份會包含所有筆記 (notes)
+        const data = { favorites, history, notes, version: "EchoScript_v2", date: new Date().toISOString() };
         const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -306,13 +432,11 @@ function EchoScriptApp() {
                 const data = JSON.parse(ev.target.result);
                 if (data.favorites) setFavorites(data.favorites);
                 if (data.history) setHistory(data.history);
-                if (data.userModifiedNotes) {
-                    setUserModifiedNotes(data.userModifiedNotes);
-                    // 重新合併筆記
-                    const merged = INITIAL_NOTES.map(n => ({ ...n, content: data.userModifiedNotes[n.id] || n.content }));
-                    setNotes(merged);
+                if (data.notes) {
+                    setNotes(data.notes); // 完全覆蓋當前筆記庫
+                    showNotification("資料庫還原成功！");
+                    setTimeout(() => window.location.reload(), 1000); // 重新整理以確保索引正確
                 }
-                showNotification("還原成功！");
             } catch (err) { showNotification("檔案格式錯誤"); }
         };
         reader.readAsText(file);
@@ -332,15 +456,17 @@ function EchoScriptApp() {
 
     // --- 渲染組件 ---
     
-    // 列表項目
+    // 列表項目 (給收藏與歷史使用)
     const NoteListItem = ({ item, isHistory }) => (
         <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-3" onClick={() => {
-            // 如果從列表點擊，切換首頁顯示該卡片
+            // 切換到該筆記
             const idx = notes.findIndex(n => n.id === item.id);
             if(idx !== -1) {
                 setCurrentIndex(idx);
                 setShowMenuModal(false);
                 window.scrollTo(0,0);
+            } else {
+                showNotification("該筆記已不在資料庫中");
             }
         }}>
             <div className="flex justify-between items-start mb-2">
@@ -348,11 +474,6 @@ function EchoScriptApp() {
                     <span className="text-xs font-bold text-stone-500 bg-stone-100 px-2 py-1 rounded">{item.title}</span>
                     <span className="text-xs text-gray-400 ml-2">{item.subtitle}</span>
                 </div>
-                {!isHistory && (
-                    <button onClick={(e) => { e.stopPropagation(); handleEditNoteSave(item.id, item.content); }} className="text-gray-300">
-                        {/* 這裡可以放刪除邏輯，暫略 */}
-                    </button>
-                )}
             </div>
             <h4 className="font-bold text-gray-800 mb-1">{item.section}</h4>
             <p className="text-sm text-gray-600 line-clamp-2">{item.content}</p>
@@ -368,19 +489,22 @@ function EchoScriptApp() {
     return (
         <div className="min-h-screen bg-stone-50 text-stone-800 font-sans pb-20">
             {/* 上方導航 */}
-            <nav className="sticky top-0 z-10 bg-stone-50/90 backdrop-blur-md px-6 py-4 flex justify-between items-center border-b border-stone-200/50">
+            <nav className="sticky top-0 z-30 bg-stone-50/90 backdrop-blur-md px-6 py-4 flex justify-between items-center border-b border-stone-200/50">
                 <div className="flex items-center gap-2">
                     <div className="bg-stone-800 text-white p-1 rounded-lg">
                         <FileText className="w-5 h-5" />
                     </div>
                     <h1 className="text-lg font-bold tracking-tight text-stone-800">EchoScript</h1>
                 </div>
-                <div className="flex gap-3">
-                    <button onClick={handleNextNote} disabled={isAnimating} className="bg-stone-800 text-stone-50 px-4 py-2 rounded-full text-xs font-bold shadow-lg shadow-stone-300 active:scale-95 transition-transform flex items-center gap-2">
-                        <RefreshCw className={`w-3 h-3 ${isAnimating ? 'animate-spin' : ''}`}/> 下一張
+                <div className="flex gap-2">
+                     <button onClick={() => { setIsCreatingNew(true); setShowEditModal(true); }} className="bg-white border border-stone-200 text-stone-600 p-2 rounded-full shadow-sm active:bg-stone-100" title="新增筆記">
+                        <Plus className="w-5 h-5" />
                     </button>
-                    <button onClick={() => setShowMenuModal(true)} className="bg-white border border-stone-200 text-stone-600 p-2 rounded-full shadow-sm active:bg-stone-100">
-                        <BookOpen className="w-5 h-5" />
+                    <button onClick={() => setShowAllNotesModal(true)} className="bg-white border border-stone-200 text-stone-600 p-2 rounded-full shadow-sm active:bg-stone-100" title="所有筆記">
+                        <List className="w-5 h-5" />
+                    </button>
+                    <button onClick={handleNextNote} disabled={isAnimating || notes.length <= 1} className="bg-stone-800 text-stone-50 px-4 py-2 rounded-full text-xs font-bold shadow-lg shadow-stone-300 active:scale-95 transition-transform flex items-center gap-2">
+                        <RefreshCw className={`w-3 h-3 ${isAnimating ? 'animate-spin' : ''}`}/> 下一張
                     </button>
                 </div>
             </nav>
@@ -397,24 +521,30 @@ function EchoScriptApp() {
                                 {/* 標題區 */}
                                 <div className="mb-6 border-b border-stone-100 pb-4">
                                     <div className="flex justify-between items-baseline mb-1">
-                                        <h2 className="text-sm font-bold text-stone-400 tracking-widest uppercase">{currentNote.title}</h2>
-                                        <span className="text-xs text-stone-300 font-serif">#{currentNote.id.toString().padStart(3, '0')}</span>
+                                        <h2 className="text-sm font-bold text-stone-400 tracking-widest uppercase">{currentNote.title || "未分類"}</h2>
+                                        <span className="text-xs text-stone-300 font-serif">#{currentNote.id.toString().slice(-3)}</span>
                                     </div>
                                     <h3 className="text-xl font-serif text-stone-600 italic">{currentNote.subtitle}</h3>
                                 </div>
                                 
-                                {/* 內容區 */}
+                                {/* 內容區 (支援簡易 Markdown 渲染效果) */}
                                 <div className="flex-1">
                                     <h1 className="text-2xl font-bold text-stone-900 mb-4">{currentNote.section}</h1>
-                                    <div className="text-lg leading-loose text-stone-700 font-serif text-justify">
-                                        {currentNote.content}
+                                    <div className="text-lg leading-loose text-stone-700 font-serif text-justify whitespace-pre-wrap">
+                                        {/* 簡單的 Markdown 渲染邏輯，避免引入外部庫增加大小 */}
+                                        {currentNote.content.split('\n').map((line, i) => {
+                                            if (line.startsWith('# ')) return <h1 key={i} className="text-2xl font-bold mt-4 mb-2">{line.slice(2)}</h1>;
+                                            if (line.startsWith('## ')) return <h2 key={i} className="text-xl font-bold mt-3 mb-2 text-stone-600">{line.slice(3)}</h2>;
+                                            if (line.startsWith('> ')) return <blockquote key={i} className="border-l-4 border-stone-300 pl-4 italic text-stone-500 my-2">{line.slice(2)}</blockquote>;
+                                            return <p key={i} className="mb-2">{line}</p>;
+                                        })}
                                     </div>
                                 </div>
                             </div>
 
                             {/* 卡片底部操作區 */}
                             <div className="bg-stone-50 px-6 py-4 border-t border-stone-100 flex justify-between items-center">
-                                <button onClick={() => setShowEditNoteModal(true)} className="flex flex-col items-center gap-1 text-stone-400 hover:text-stone-800 transition-colors">
+                                <button onClick={() => { setIsCreatingNew(false); setShowEditModal(true); }} className="flex flex-col items-center gap-1 text-stone-400 hover:text-stone-800 transition-colors">
                                     <Edit className="w-5 h-5" />
                                     <span className="text-[10px] font-bold">修改筆記</span>
                                 </button>
@@ -442,9 +572,18 @@ function EchoScriptApp() {
                         )}
                     </div>
                 ) : (
-                    <div className="flex justify-center py-20"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-stone-800"></div></div>
+                    <div className="flex flex-col items-center justify-center py-20 text-stone-400">
+                        <BookOpen className="w-12 h-12 mb-4 opacity-50"/>
+                        <p>資料庫是空的</p>
+                        <button onClick={() => { setIsCreatingNew(true); setShowEditModal(true); }} className="mt-4 text-stone-600 underline">新增第一則筆記</button>
+                    </div>
                 )}
             </main>
+            
+            {/* 底部浮動按鈕 - 打開選單 */}
+            <button onClick={() => setShowMenuModal(true)} className="fixed bottom-6 right-6 bg-white border border-stone-200 text-stone-600 p-3 rounded-full shadow-lg active:scale-95 z-20">
+                <BookOpen className="w-6 h-6" />
+            </button>
 
             {/* Modal: 選單 (收藏/歷史/備份) */}
             {showMenuModal && (
@@ -471,7 +610,7 @@ function EchoScriptApp() {
                                 <div className="space-y-4">
                                     <div className="bg-white p-4 rounded-xl border border-stone-200">
                                         <h3 className="font-bold mb-2 flex items-center gap-2"><Download className="w-4 h-4"/> 匯出資料</h3>
-                                        <p className="text-xs text-gray-500 mb-3">將您修改過的筆記內容與回應日記下載備份。</p>
+                                        <p className="text-xs text-gray-500 mb-3">包含所有新增的筆記與回應。</p>
                                         <button onClick={handleBackup} className="w-full bg-stone-100 text-stone-800 text-sm font-bold py-2 rounded-lg border border-stone-200">下載 JSON</button>
                                     </div>
                                     <div className="bg-white p-4 rounded-xl border border-stone-200">
@@ -488,12 +627,30 @@ function EchoScriptApp() {
                 </div>
             )}
 
-            {/* Modal: 編輯筆記內容 */}
-            {showEditNoteModal && currentNote && (
-                <EditNoteModal 
-                    note={currentNote} 
-                    onClose={() => setShowEditNoteModal(false)} 
-                    onSave={handleEditNoteSave} 
+            {/* Modal: 編輯/新增筆記 */}
+            {showEditModal && (
+                <MarkdownEditorModal 
+                    note={isCreatingNew ? null : currentNote} 
+                    isNew={isCreatingNew}
+                    onClose={() => setShowEditModal(false)} 
+                    onSave={handleSaveNote} 
+                />
+            )}
+
+            {/* Modal: 所有筆記列表 */}
+            {showAllNotesModal && (
+                <AllNotesModal 
+                    notes={notes}
+                    onClose={() => setShowAllNotesModal(false)}
+                    onItemClick={(item) => {
+                        const idx = notes.findIndex(n => n.id === item.id);
+                        if(idx !== -1) {
+                            setCurrentIndex(idx);
+                            setShowAllNotesModal(false);
+                            window.scrollTo(0,0);
+                        }
+                    }}
+                    onDelete={handleDeleteNote}
                 />
             )}
 

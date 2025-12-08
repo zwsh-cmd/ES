@@ -1,8 +1,8 @@
-// === EchoScript v2.0: 包含新增、Markdown編輯與總覽功能 ===
-const { useState, useEffect, useRef, useCallback } = React;
+// === EchoScript v2.1: 修正語法錯誤版 ===
+const { useState, useEffect, useRef, useCallback, useMemo } = React;
 const { createRoot } = ReactDOM;
 
-// === 1. 圖示組件庫 (擴充版) ===
+// === 1. 圖示組件庫 ===
 const IconBase = ({ d, className, ...props }) => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} {...props}>
         {Array.isArray(d) ? d.map((path, i) => <path key={i} d={path} />) : <path d={d} />}
@@ -26,7 +26,7 @@ const FileText = (props) => <IconBase d={["M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 
 const Plus = (props) => <IconBase d={["M12 5v14", "M5 12h14"]} {...props} />;
 const List = (props) => <IconBase d={["M8 6h13", "M8 12h13", "M8 18h13", "M3 6h.01", "M3 12h.01", "M3 18h.01"]} {...props} />;
 const Bold = (props) => <IconBase d={["M6 4h8a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z", "M6 12h9a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"]} {...props} />;
-const Heading1 = (props) => <IconBase d={["M4 12h8", "M4 18V6", "M12 18V6", "M21 18l-4-12-4 12"]} {...props} />; // 簡化的H示意
+const Heading1 = (props) => <IconBase d={["M4 12h8", "M4 18V6", "M12 18V6", "M21 18l-4-12-4 12"]} {...props} />; 
 const Quote = (props) => <IconBase d={["M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V20c0 1 0 1 1 1z", "M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V20c0 1 0 1 1 1z"]} {...props} />;
 
 
@@ -55,9 +55,8 @@ class ErrorBoundary extends React.Component {
   }
 }
 
-// === 4. Markdown 編輯器組件 (支援工具列) ===
+// === 4. Markdown 編輯器組件 ===
 const MarkdownEditorModal = ({ note, isNew = false, onClose, onSave }) => {
-    // 編輯器狀態：對應新的資料結構 category, subcategory, title
     const [formData, setFormData] = useState({
         category: note?.category || "",
         subcategory: note?.subcategory || "",
@@ -67,7 +66,6 @@ const MarkdownEditorModal = ({ note, isNew = false, onClose, onSave }) => {
 
     const contentRef = useRef(null);
 
-    // 插入 Markdown 語法
     const insertMarkdown = (syntax) => {
         const textarea = contentRef.current;
         if (!textarea) return;
@@ -122,7 +120,6 @@ const MarkdownEditorModal = ({ note, isNew = false, onClose, onSave }) => {
                 </nav>
                 
                 <div className="p-4 flex-col flex flex-1 overflow-y-auto custom-scrollbar gap-4">
-                    {/* Metadata 輸入區：改為大分類、次分類 */}
                     <div className="grid grid-cols-2 gap-3">
                         <input 
                             placeholder="大分類 (如：故事結構)"
@@ -144,7 +141,6 @@ const MarkdownEditorModal = ({ note, isNew = false, onClose, onSave }) => {
                         onChange={(e) => setFormData({...formData, title: e.target.value})}
                     />
 
-                    {/* Markdown 工具列 */}
                     <div className="flex gap-2 py-2 border-t border-b border-stone-100 overflow-x-auto">
                         <button onClick={() => insertMarkdown('h1')} className="p-2 hover:bg-stone-100 rounded text-stone-600 flex items-center gap-1 text-xs font-bold" title="大標"><Heading1 className="w-4 h-4"/> 大標</button>
                         <button onClick={() => insertMarkdown('h2')} className="p-2 hover:bg-stone-100 rounded text-stone-600 flex items-center gap-1 text-xs font-bold" title="小標"><Heading1 className="w-3 h-3"/> 小標</button>
@@ -152,7 +148,6 @@ const MarkdownEditorModal = ({ note, isNew = false, onClose, onSave }) => {
                         <button onClick={() => insertMarkdown('quote')} className="p-2 hover:bg-stone-100 rounded text-stone-600 flex items-center gap-1 text-xs font-bold" title="引用"><Quote className="w-4 h-4"/> 引用</button>
                     </div>
 
-                    {/* 內容輸入區 */}
                     <textarea 
                         ref={contentRef}
                         className="flex-1 w-full bg-white p-2 text-gray-800 text-lg leading-relaxed outline-none resize-none min-h-[200px]"
@@ -195,18 +190,63 @@ const ResponseModal = ({ note, initialResponse, onClose, onSave }) => {
 
 // === 6. 所有筆記列表 Modal (Library View) ===
 const AllNotesModal = ({ notes, onClose, onItemClick, onDelete }) => {
+    const [viewLevel, setViewLevel] = useState('categories');
+    const [selectedCategory, setSelectedCategory] = useState(null);
+    const [selectedSubcategory, setSelectedSubcategory] = useState(null);
     const [searchTerm, setSearchTerm] = useState("");
-    
-    const filteredNotes = notes.filter(n => 
-        n.title.includes(searchTerm) || 
-        n.section.includes(searchTerm) || 
-        n.content.includes(searchTerm)
-    );
+
+    const categories = useMemo(() => {
+        return [...new Set(notes.map(n => n.category || "未分類"))];
+    }, [notes]);
+
+    const subcategories = useMemo(() => {
+        if (!selectedCategory) return [];
+        return [...new Set(notes.filter(n => (n.category || "未分類") === selectedCategory).map(n => n.subcategory || "一般"))];
+    }, [notes, selectedCategory]);
+
+    const targetNotes = useMemo(() => {
+        if (!selectedCategory || !selectedSubcategory) return [];
+        return notes.filter(n => 
+            (n.category || "未分類") === selectedCategory && 
+            (n.subcategory || "一般") === selectedSubcategory
+        );
+    }, [notes, selectedCategory, selectedSubcategory]);
+
+    const searchResults = useMemo(() => {
+        if (!searchTerm) return [];
+        return notes.filter(n => 
+            (n.title && n.title.includes(searchTerm)) || 
+            (n.content && n.content.includes(searchTerm)) ||
+            (n.category && n.category.includes(searchTerm))
+        );
+    }, [notes, searchTerm]);
+
+    const handleBack = () => {
+        if (viewLevel === 'notes') {
+            setViewLevel('subcategories');
+            setSelectedSubcategory(null);
+        } else if (viewLevel === 'subcategories') {
+            setViewLevel('categories');
+            setSelectedCategory(null);
+        }
+    };
 
     return (
         <div className="fixed inset-0 z-40 bg-stone-50 flex flex-col animate-in slide-in-from-right duration-300">
             <div className="p-4 border-b border-stone-200 bg-white flex justify-between items-center sticky top-0 z-10">
-                <h2 className="font-bold text-lg flex items-center gap-2"><List className="w-5 h-5"/> 所有筆記 ({notes.length})</h2>
+                <div className="flex items-center gap-2">
+                    {viewLevel !== 'categories' && !searchTerm && (
+                        <button onClick={handleBack} className="p-1 -ml-2 text-stone-500 hover:bg-stone-100 rounded-full mr-1">
+                            <IconBase d="M15 18l-6-6 6-6" /> 
+                        </button>
+                    )}
+                    <h2 className="font-bold text-lg flex items-center gap-2">
+                        {searchTerm ? "搜尋結果" : 
+                         viewLevel === 'categories' ? "筆記分類" : 
+                         viewLevel === 'subcategories' ? selectedCategory : 
+                         selectedSubcategory}
+                    </h2>
+                </div>
                 <button onClick={onClose} className="p-2 bg-stone-100 rounded-full"><X className="w-5 h-5 text-gray-600" /></button>
             </div>
             
@@ -221,23 +261,54 @@ const AllNotesModal = ({ notes, onClose, onItemClick, onDelete }) => {
             </div>
 
             <div className="flex-1 overflow-y-auto p-4 custom-scrollbar pb-20">
-                {filteredNotes.map(item => (
-                    <div key={item.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-3 active:scale-[0.99] transition-transform" 
-                         onClick={() => onItemClick(item)}>
-                        <div className="flex justify-between items-start mb-2">
-                            <div>
-                                <span className="text-xs font-bold text-stone-500 bg-stone-100 px-2 py-1 rounded">{item.title || "未分類"}</span>
-                                <span className="text-xs text-gray-400 ml-2">{item.subtitle}</span>
+                
+                {/* 模式 A: 搜尋結果 */}
+                {searchTerm && (
+                    searchResults.length > 0 ? searchResults.map(item => (
+                        <div key={item.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-3 active:scale-[0.99] transition-transform" 
+                             onClick={() => onItemClick(item)}>
+                            <div className="flex justify-between items-start mb-1">
+                                <span className="text-xs font-bold text-stone-500 bg-stone-100 px-2 py-1 rounded">{item.category} / {item.subcategory}</span>
                             </div>
-                            <button onClick={(e) => { e.stopPropagation(); onDelete(item.id); }} className="text-stone-300 hover:text-red-500 p-1">
-                                <Trash2 className="w-4 h-4"/>
-                            </button>
+                            <h4 className="font-bold text-gray-800">{item.title}</h4>
+                            <p className="text-sm text-gray-500 line-clamp-1 mt-1">{item.content}</p>
                         </div>
-                        <h4 className="font-bold text-gray-800 mb-1">{item.section}</h4>
-                        <p className="text-sm text-gray-600 line-clamp-2">{item.content}</p>
-                    </div>
-                ))}
-                {filteredNotes.length === 0 && <div className="text-center text-gray-400 mt-10">沒有找到相關筆記</div>}
+                    )) : <div className="text-center text-gray-400 mt-10">沒有找到相關筆記</div>
+                )}
+
+                {/* 模式 B: 層級導航 */}
+                {!searchTerm && (
+                    <>
+                        {viewLevel === 'categories' && categories.map(cat => (
+                            <div key={cat} onClick={() => { setSelectedCategory(cat); setViewLevel('subcategories'); }}
+                                 className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 mb-3 flex justify-between items-center cursor-pointer hover:border-stone-300">
+                                <span className="font-bold text-lg text-stone-800">{cat}</span>
+                                <IconBase d="M9 18l6-6-6-6" className="text-stone-300 w-5 h-5" />
+                            </div>
+                        ))}
+
+                        {viewLevel === 'subcategories' && subcategories.map(sub => (
+                            <div key={sub} onClick={() => { setSelectedSubcategory(sub); setViewLevel('notes'); }}
+                                 className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 mb-3 flex justify-between items-center cursor-pointer hover:border-stone-300">
+                                <span className="font-medium text-lg text-stone-700">{sub}</span>
+                                <IconBase d="M9 18l6-6-6-6" className="text-stone-300 w-5 h-5" />
+                            </div>
+                        ))}
+
+                        {viewLevel === 'notes' && targetNotes.map(item => (
+                            <div key={item.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-3 active:scale-[0.99] transition-transform" 
+                                 onClick={() => onItemClick(item)}>
+                                <div className="flex justify-between items-center">
+                                    <h4 className="font-bold text-gray-800 text-lg">{item.title}</h4>
+                                    <button onClick={(e) => { e.stopPropagation(); onDelete(item.id); }} className="text-stone-300 hover:text-red-500 p-2">
+                                        <Trash2 className="w-4 h-4"/>
+                                    </button>
+                                </div>
+                                <p className="text-sm text-gray-500 line-clamp-2 mt-2">{item.content}</p>
+                            </div>
+                        ))}
+                    </>
+                )}
             </div>
         </div>
     );
@@ -246,63 +317,48 @@ const AllNotesModal = ({ notes, onClose, onItemClick, onDelete }) => {
 
 // === 主程式 ===
 function EchoScriptApp() {
-    // 核心狀態：所有的筆記 (不再分開儲存修改)
     const [notes, setNotes] = useState([]);
     const [currentIndex, setCurrentIndex] = useState(0);
     const [isAnimating, setIsAnimating] = useState(false);
     
-    // 用戶資料狀態
-    const [favorites, setFavorites] = useState([]); // 收藏 (包含回應)
+    const [favorites, setFavorites] = useState([]);
     const [history, setHistory] = useState([]);
-    const [recentIndices, setRecentIndices] = useState([]); // 用來隨機不重複
+    const [recentIndices, setRecentIndices] = useState([]);
 
-    // UI 狀態
-    const [showMenuModal, setShowMenuModal] = useState(false); // 收藏/歷史/備份選單
-    const [showAllNotesModal, setShowAllNotesModal] = useState(false); // 所有筆記選單
-    const [showEditModal, setShowEditModal] = useState(false); // 編輯/新增視窗
-    const [isCreatingNew, setIsCreatingNew] = useState(false); // 是否為新增模式
+    const [showMenuModal, setShowMenuModal] = useState(false);
+    const [showAllNotesModal, setShowAllNotesModal] = useState(false);
+    const [showEditModal, setShowEditModal] = useState(false);
+    const [isCreatingNew, setIsCreatingNew] = useState(false);
     const [showResponseModal, setShowResponseModal] = useState(false);
     const [activeTab, setActiveTab] = useState('favorites');
     const [notification, setNotification] = useState(null);
 
-    // 手勢狀態
     const [touchStart, setTouchStart] = useState(null);
     const [touchCurrent, setTouchCurrent] = useState(null);
 
-    // 1. 初始化資料載入 (關鍵修改：統一使用 LocalStorage 作為單一真理來源)
     useEffect(() => {
         try {
-            // 載入所有筆記
             const savedNotes = JSON.parse(localStorage.getItem('echoScript_AllNotes'));
-            
             let finalNotes;
             if (savedNotes && savedNotes.length > 0) {
                 finalNotes = savedNotes;
             } else {
-                // 第一次使用，載入預設資料並存入
                 finalNotes = INITIAL_NOTES;
                 localStorage.setItem('echoScript_AllNotes', JSON.stringify(finalNotes));
             }
             setNotes(finalNotes);
-
-            // 載入其他用戶資料
             setFavorites(JSON.parse(localStorage.getItem('echoScript_Favorites') || '[]'));
             setHistory(JSON.parse(localStorage.getItem('echoScript_History') || '[]'));
             setRecentIndices(JSON.parse(localStorage.getItem('echoScript_Recents') || '[]'));
 
-            // 隨機選一個初始筆記
             if (finalNotes.length > 0) {
                 const idx = Math.floor(Math.random() * finalNotes.length);
                 setCurrentIndex(idx);
                 addToHistory(finalNotes[idx]);
             }
-
-        } catch (e) {
-            console.error("Init failed", e);
-        }
+        } catch (e) { console.error("Init failed", e); }
     }, []);
 
-    // 2. 自動存檔監聽
     useEffect(() => { localStorage.setItem('echoScript_AllNotes', JSON.stringify(notes)); }, [notes]);
     useEffect(() => { localStorage.setItem('echoScript_Favorites', JSON.stringify(favorites)); }, [favorites]);
     useEffect(() => { localStorage.setItem('echoScript_History', JSON.stringify(history)); }, [history]);
@@ -319,8 +375,6 @@ function EchoScriptApp() {
     const currentNote = notes[currentIndex];
     const currentFav = favorites.find(f => f.id === (currentNote ? currentNote.id : null));
     const isFavorite = !!currentFav;
-
-    // --- 核心操作 ---
 
     const handleNextNote = () => {
         if (notes.length <= 1) return;
@@ -347,17 +401,13 @@ function EchoScriptApp() {
         }, 300);
     };
 
-    // 新增與修改筆記 (統一處理)
     const handleSaveNote = (updatedNote) => {
         if (isCreatingNew) {
-            // 新增模式
             setNotes(prev => [updatedNote, ...prev]);
-            setCurrentIndex(0); // 顯示最新的這張
+            setCurrentIndex(0);
             showNotification("新筆記已建立");
         } else {
-            // 修改模式
             setNotes(prev => prev.map(n => n.id === updatedNote.id ? updatedNote : n));
-            // 同步更新收藏與歷史中的內容顯示 (可選)
             setFavorites(prev => prev.map(f => f.id === updatedNote.id ? { ...f, ...updatedNote } : f));
             showNotification("筆記已更新");
         }
@@ -368,8 +418,6 @@ function EchoScriptApp() {
         if (confirm("確定要刪除這則筆記嗎？此動作無法復原。")) {
             const newNotes = notes.filter(n => n.id !== id);
             setNotes(newNotes);
-            
-            // 如果刪除的是當前顯示的，切換到下一張
             if (currentNote && currentNote.id === id) {
                 const nextIdx = newNotes.length > 0 ? 0 : -1;
                 setCurrentIndex(nextIdx);
@@ -379,12 +427,7 @@ function EchoScriptApp() {
     };
 
     const handleResponseSave = (responseText) => {
-        const entry = {
-            ...currentNote,
-            journalEntry: responseText,
-            timestamp: new Date().toISOString()
-        };
-
+        const entry = { ...currentNote, journalEntry: responseText, timestamp: new Date().toISOString() };
         setFavorites(prev => {
             const existingIdx = prev.findIndex(f => f.id === currentNote.id);
             if (existingIdx > -1) {
@@ -399,11 +442,15 @@ function EchoScriptApp() {
         showNotification("回應已儲存至收藏");
     };
 
-    const md = `# ${currentNote.category} / ${currentNote.subcategory}\n## ${currentNote.title}\n\n${currentNote.content}\n\n> 來自 EchoScript 編劇靈感庫`;
+    const handleCopyMarkdown = () => {
+        if (!currentNote) return;
+        const md = `# ${currentNote.category} / ${currentNote.subcategory}\n## ${currentNote.title}\n\n${currentNote.content}\n\n> 來自 EchoScript 編劇靈感庫`;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(md).then(() => showNotification("已複製 Markdown")).catch(() => showNotification("複製失敗"));
+        }
+    };
 
-    // --- 備份還原 ---
     const handleBackup = () => {
-        // 現在備份會包含所有筆記 (notes)
         const data = { favorites, history, notes, version: "EchoScript_v2", date: new Date().toISOString() };
         const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
         const url = URL.createObjectURL(blob);
@@ -425,37 +472,46 @@ function EchoScriptApp() {
                 if (data.favorites) setFavorites(data.favorites);
                 if (data.history) setHistory(data.history);
                 if (data.notes) {
-                    setNotes(data.notes); // 完全覆蓋當前筆記庫
+                    setNotes(data.notes);
                     showNotification("資料庫還原成功！");
-                    setTimeout(() => window.location.reload(), 1000); // 重新整理以確保索引正確
+                    setTimeout(() => window.location.reload(), 1000);
                 }
             } catch (err) { showNotification("檔案格式錯誤"); }
         };
         reader.readAsText(file);
     };
 
-    // --- 手勢 ---
     const onTouchStart = (e) => { setTouchStart({ x: e.touches[0].clientX, y: e.touches[0].clientY }); };
     const onTouchMove = (e) => { setTouchCurrent({ x: e.touches[0].clientX, y: e.touches[0].clientY }); };
     const onTouchEnd = () => {
         if (!touchStart || !touchCurrent) return;
         const dx = touchStart.x - touchCurrent.x;
         const dy = touchCurrent.y - touchStart.y;
-        if (Math.abs(dx) > Math.abs(dy) && dx > 50) handleNextNote(); // 左滑
-        if (Math.abs(dy) > Math.abs(dx) && dy > 100 && window.scrollY === 0) handleNextNote(); // 下拉
+        if (Math.abs(dx) > Math.abs(dy) && dx > 50) handleNextNote(); 
+        if (Math.abs(dy) > Math.abs(dx) && dy > 100 && window.scrollY === 0) handleNextNote(); 
         setTouchStart(null); setTouchCurrent(null);
     };
 
-    // --- 渲染組件 ---
-    
-    // 列表項目 (給收藏與歷史使用)
-    {/* 改成顯示分類 */}
-                <span className="text-xs font-bold text-stone-500 bg-stone-100 px-2 py-1 rounded">{item.category}</span>
-                <span className="text-xs text-gray-400 ml-2">{item.subcategory}</span>
+    // 渲染：列表項目 (給收藏與歷史使用)
+    const NoteListItem = ({ item, isHistory }) => (
+        <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-3" onClick={() => {
+            const idx = notes.findIndex(n => n.id === item.id);
+            if(idx !== -1) {
+                setCurrentIndex(idx);
+                setShowMenuModal(false);
+                window.scrollTo(0,0);
+            } else {
+                showNotification("該筆記已不在資料庫中");
+            }
+        }}>
+            <div className="flex justify-between items-start mb-2">
+                <div>
+                    <span className="text-xs font-bold text-stone-500 bg-stone-100 px-2 py-1 rounded">{item.category}</span>
+                    <span className="text-xs text-gray-400 ml-2">{item.subcategory}</span>
+                </div>
             </div>
-        </div>
-        {/* 改成顯示大標題 */}
-        <h4 className="font-bold text-gray-800 mb-1">{item.title}</h4>
+            <h4 className="font-bold text-gray-800 mb-1">{item.title}</h4>
+            <p className="text-sm text-gray-600 line-clamp-2">{item.content}</p>
             {item.journalEntry && (
                 <div className="mt-3 pt-2 border-t border-gray-50">
                     <p className="text-xs text-stone-500 font-bold flex items-center gap-1"><PenLine className="w-3 h-3"/> 我的回應</p>
@@ -467,7 +523,6 @@ function EchoScriptApp() {
 
     return (
         <div className="min-h-screen bg-stone-50 text-stone-800 font-sans pb-20">
-            {/* 上方導航 */}
             <nav className="sticky top-0 z-30 bg-stone-50/90 backdrop-blur-md px-6 py-4 flex justify-between items-center border-b border-stone-200/50">
                 <div className="flex items-center gap-2">
                     <div className="bg-stone-800 text-white p-1 rounded-lg">
@@ -488,28 +543,23 @@ function EchoScriptApp() {
                 </div>
             </nav>
 
-            {/* 主卡片區 */}
             <main className="px-6 py-6 max-w-lg mx-auto" onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
                 {currentNote ? (
                     <div className={`transition-all duration-500 ${isAnimating ? 'opacity-0 translate-y-4' : 'opacity-100 translate-y-0'}`}>
-                        {/* 索引卡片樣式 */}
                         <div className="bg-white rounded-xl shadow-xl border border-stone-200 overflow-hidden relative min-h-[400px] flex flex-col">
-                            {/* 卡片頭部線條裝飾 */}
                             <div className="h-2 bg-stone-800 w-full"></div>
                             <div className="p-8 flex-1 flex flex-col">
-                                {/* 1. 把 title 改成 category */}
-                                <h2 className="text-sm font-bold text-stone-400 tracking-widest uppercase">{currentNote.category || "未分類"}</h2>
-                                <span className="text-xs text-stone-300 font-serif">#{currentNote.id.toString().slice(-3)}</span>
-                            </div>
-                            {/* 2. 把 subtitle 改成 subcategory */}
-                            <h3 className="text-xl font-serif text-stone-600 italic">{currentNote.subcategory}</h3>
-                        </div>
-
-                        {/* 內容區 */}
-                        <div className="flex-1">
-                            {/* 3. 把 section 改成 title */}
-                            <h1 className="text-2xl font-bold text-stone-900 mb-4">{currentNote.title}</h1>
-                                        {/* 簡單的 Markdown 渲染邏輯，避免引入外部庫增加大小 */}
+                                <div className="mb-6 border-b border-stone-100 pb-4">
+                                    <div className="flex justify-between items-baseline mb-1">
+                                        <h2 className="text-sm font-bold text-stone-400 tracking-widest uppercase">{currentNote.category || "未分類"}</h2>
+                                        <span className="text-xs text-stone-300 font-serif">#{currentNote.id.toString().slice(-3)}</span>
+                                    </div>
+                                    <h3 className="text-xl font-serif text-stone-600 italic">{currentNote.subcategory}</h3>
+                                </div>
+                                
+                                <div className="flex-1">
+                                    <h1 className="text-2xl font-bold text-stone-900 mb-4">{currentNote.title}</h1>
+                                    <div className="text-lg leading-loose text-stone-700 font-serif text-justify whitespace-pre-wrap">
                                         {currentNote.content.split('\n').map((line, i) => {
                                             if (line.startsWith('# ')) return <h1 key={i} className="text-2xl font-bold mt-4 mb-2">{line.slice(2)}</h1>;
                                             if (line.startsWith('## ')) return <h2 key={i} className="text-xl font-bold mt-3 mb-2 text-stone-600">{line.slice(3)}</h2>;
@@ -520,7 +570,6 @@ function EchoScriptApp() {
                                 </div>
                             </div>
 
-                            {/* 卡片底部操作區 */}
                             <div className="bg-stone-50 px-6 py-4 border-t border-stone-100 flex justify-between items-center">
                                 <button onClick={() => { setIsCreatingNew(false); setShowEditModal(true); }} className="flex flex-col items-center gap-1 text-stone-400 hover:text-stone-800 transition-colors">
                                     <Edit className="w-5 h-5" />
@@ -541,7 +590,6 @@ function EchoScriptApp() {
                             </div>
                         </div>
 
-                        {/* 如果有回應，顯示在下方 */}
                         {isFavorite && currentFav?.journalEntry && (
                             <div className="mt-6 ml-4 border-l-2 border-stone-300 pl-4 animate-in fade-in slide-in-from-bottom-2">
                                 <p className="text-xs font-bold text-stone-400 mb-1">MY NOTE</p>
@@ -558,12 +606,10 @@ function EchoScriptApp() {
                 )}
             </main>
             
-            {/* 底部浮動按鈕 - 打開選單 */}
             <button onClick={() => setShowMenuModal(true)} className="fixed bottom-6 right-6 bg-white border border-stone-200 text-stone-600 p-3 rounded-full shadow-lg active:scale-95 z-20">
                 <BookOpen className="w-6 h-6" />
             </button>
 
-            {/* Modal: 選單 (收藏/歷史/備份) */}
             {showMenuModal && (
                 <div className="fixed inset-0 z-40 bg-stone-900/40 backdrop-blur-sm flex justify-end" onClick={(e) => { if(e.target === e.currentTarget) setShowMenuModal(false); }}>
                     <div className="w-full max-w-sm bg-stone-50 h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
@@ -605,7 +651,6 @@ function EchoScriptApp() {
                 </div>
             )}
 
-            {/* Modal: 編輯/新增筆記 */}
             {showEditModal && (
                 <MarkdownEditorModal 
                     note={isCreatingNew ? null : currentNote} 
@@ -615,7 +660,6 @@ function EchoScriptApp() {
                 />
             )}
 
-            {/* Modal: 所有筆記列表 */}
             {showAllNotesModal && (
                 <AllNotesModal 
                     notes={notes}
@@ -632,7 +676,6 @@ function EchoScriptApp() {
                 />
             )}
 
-            {/* Modal: 回應筆記 */}
             {showResponseModal && currentNote && (
                 <ResponseModal 
                     note={currentNote} 
@@ -642,7 +685,6 @@ function EchoScriptApp() {
                 />
             )}
 
-            {/* 通知 Toast */}
             {notification && (
                 <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-stone-800 text-white text-xs font-bold px-4 py-2 rounded-full shadow-lg animate-in fade-in slide-in-from-bottom-2 z-50">
                     {notification}
@@ -654,4 +696,3 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
-

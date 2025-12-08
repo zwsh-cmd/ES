@@ -1,4 +1,4 @@
-// === EchoScript v2.1: 修正語法錯誤版 ===
+// === EchoScript v2.2: 完整修復版 (包含分類顯示與防白畫面) ===
 const { useState, useEffect, useRef, useCallback, useMemo } = React;
 const { createRoot } = ReactDOM;
 
@@ -30,7 +30,7 @@ const Heading1 = (props) => <IconBase d={["M4 12h8", "M4 18V6", "M12 18V6", "M21
 const Quote = (props) => <IconBase d={["M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V20c0 1 0 1 1 1z", "M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V20c0 1 0 1 1 1z"]} {...props} />;
 
 
-// === 2. 初始編劇筆記資料庫 ===
+// === 2. 初始編劇筆記資料庫 (確保有完整分類) ===
 const INITIAL_NOTES = [
     { id: 1, category: "故事結構", subcategory: "三幕劇", title: "第一幕：鋪陳", content: "在第一幕中，必須建立主角的現狀（Normal World），並引入『引發事件』（Inciting Incident），這通常發生在故事的前10-15%。這個事件打破了主角的平衡，迫使他們做出選擇。" },
     { id: 2, category: "人物塑造", subcategory: "角色弧光", title: "內在需求 vs 外在慾望", content: "一個立體的角色通常擁有一個明確的『外在慾望』（Want），例如贏得比賽或復仇；但他們同時有一個隱藏的『內在需求』（Need），通常是他們自己沒意識到的性格缺陷。故事的終點，往往是角色犧牲了慾望，滿足了需求。" },
@@ -188,7 +188,7 @@ const ResponseModal = ({ note, initialResponse, onClose, onSave }) => {
     );
 };
 
-// === 6. 所有筆記列表 Modal (Library View) ===
+// === 6. 所有筆記列表 Modal (支援分類顯示) ===
 const AllNotesModal = ({ notes, onClose, onItemClick, onDelete }) => {
     const [viewLevel, setViewLevel] = useState('categories');
     const [selectedCategory, setSelectedCategory] = useState(null);
@@ -314,6 +314,34 @@ const AllNotesModal = ({ notes, onClose, onItemClick, onDelete }) => {
     );
 };
 
+// === 7. NoteListItem (關鍵修復：這裡定義單一筆記在列表中的顯示) ===
+const NoteListItem = ({ item, isHistory }) => (
+    <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-3" onClick={() => {
+        // 這裡會觸發點擊事件，由父組件處理
+        const event = new CustomEvent('noteSelected', { detail: item.id });
+        window.dispatchEvent(event);
+    }}>
+        <div className="flex justify-between items-start mb-2">
+            <div>
+                {/* 顯示分類 */}
+                <span className="text-xs font-bold text-stone-500 bg-stone-100 px-2 py-1 rounded">{item.category || "未分類"}</span>
+                <span className="text-xs text-gray-400 ml-2">{item.subcategory}</span>
+            </div>
+        </div>
+        {/* 顯示標題 */}
+        <h4 className="font-bold text-gray-800 mb-1">{item.title}</h4>
+        {/* 顯示內容預覽 */}
+        <p className="text-sm text-gray-600 line-clamp-2">{item.content}</p>
+        
+        {item.journalEntry && (
+            <div className="mt-3 pt-2 border-t border-gray-50">
+                <p className="text-xs text-stone-500 font-bold flex items-center gap-1"><PenLine className="w-3 h-3"/> 我的回應</p>
+                <p className="text-xs text-gray-500 italic mt-1">{item.journalEntry}</p>
+            </div>
+        )}
+    </div>
+);
+
 
 // === 主程式 ===
 function EchoScriptApp() {
@@ -358,6 +386,21 @@ function EchoScriptApp() {
             }
         } catch (e) { console.error("Init failed", e); }
     }, []);
+
+    // 監聽 NoteListItem 的點擊事件
+    useEffect(() => {
+        const handleNoteSelect = (e) => {
+            const noteId = e.detail;
+            const idx = notes.findIndex(n => n.id === noteId);
+            if (idx !== -1) {
+                setCurrentIndex(idx);
+                setShowMenuModal(false);
+                window.scrollTo(0, 0);
+            }
+        };
+        window.addEventListener('noteSelected', handleNoteSelect);
+        return () => window.removeEventListener('noteSelected', handleNoteSelect);
+    }, [notes]);
 
     useEffect(() => { localStorage.setItem('echoScript_AllNotes', JSON.stringify(notes)); }, [notes]);
     useEffect(() => { localStorage.setItem('echoScript_Favorites', JSON.stringify(favorites)); }, [favorites]);
@@ -492,35 +535,6 @@ function EchoScriptApp() {
         setTouchStart(null); setTouchCurrent(null);
     };
 
-    // 渲染：列表項目 (給收藏與歷史使用)
-    const NoteListItem = ({ item, isHistory }) => (
-        <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-3" onClick={() => {
-            const idx = notes.findIndex(n => n.id === item.id);
-            if(idx !== -1) {
-                setCurrentIndex(idx);
-                setShowMenuModal(false);
-                window.scrollTo(0,0);
-            } else {
-                showNotification("該筆記已不在資料庫中");
-            }
-        }}>
-            <div className="flex justify-between items-start mb-2">
-                <div>
-                    <span className="text-xs font-bold text-stone-500 bg-stone-100 px-2 py-1 rounded">{item.category}</span>
-                    <span className="text-xs text-gray-400 ml-2">{item.subcategory}</span>
-                </div>
-            </div>
-            <h4 className="font-bold text-gray-800 mb-1">{item.title}</h4>
-            <p className="text-sm text-gray-600 line-clamp-2">{item.content}</p>
-            {item.journalEntry && (
-                <div className="mt-3 pt-2 border-t border-gray-50">
-                    <p className="text-xs text-stone-500 font-bold flex items-center gap-1"><PenLine className="w-3 h-3"/> 我的回應</p>
-                    <p className="text-xs text-gray-500 italic mt-1">{item.journalEntry}</p>
-                </div>
-            )}
-        </div>
-    );
-
     return (
         <div className="min-h-screen bg-stone-50 text-stone-800 font-sans pb-20">
             <nav className="sticky top-0 z-30 bg-stone-50/90 backdrop-blur-md px-6 py-4 flex justify-between items-center border-b border-stone-200/50">
@@ -546,19 +560,25 @@ function EchoScriptApp() {
             <main className="px-6 py-6 max-w-lg mx-auto" onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
                 {currentNote ? (
                     <div className={`transition-all duration-500 ${isAnimating ? 'opacity-0 translate-y-4' : 'opacity-100 translate-y-0'}`}>
+                        {/* 這裡就是主卡片顯示的地方 */}
                         <div className="bg-white rounded-xl shadow-xl border border-stone-200 overflow-hidden relative min-h-[400px] flex flex-col">
                             <div className="h-2 bg-stone-800 w-full"></div>
                             <div className="p-8 flex-1 flex flex-col">
                                 <div className="mb-6 border-b border-stone-100 pb-4">
                                     <div className="flex justify-between items-baseline mb-1">
+                                        {/* 1. 顯示大分類 Category */}
                                         <h2 className="text-sm font-bold text-stone-400 tracking-widest uppercase">{currentNote.category || "未分類"}</h2>
                                         <span className="text-xs text-stone-300 font-serif">#{currentNote.id.toString().slice(-3)}</span>
                                     </div>
+                                    {/* 2. 顯示次分類 Subcategory */}
                                     <h3 className="text-xl font-serif text-stone-600 italic">{currentNote.subcategory}</h3>
                                 </div>
                                 
                                 <div className="flex-1">
+                                    {/* 3. 顯示大標題 Title */}
                                     <h1 className="text-2xl font-bold text-stone-900 mb-4">{currentNote.title}</h1>
+                                    
+                                    {/* 4. 顯示內容 Content */}
                                     <div className="text-lg leading-loose text-stone-700 font-serif text-justify whitespace-pre-wrap">
                                         {currentNote.content.split('\n').map((line, i) => {
                                             if (line.startsWith('# ')) return <h1 key={i} className="text-2xl font-bold mt-4 mb-2">{line.slice(2)}</h1>;

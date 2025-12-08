@@ -56,13 +56,29 @@ class ErrorBoundary extends React.Component {
 }
 
 // === 4. Markdown 編輯器組件 ===
-const MarkdownEditorModal = ({ note, isNew = false, onClose, onSave }) => {
+// 修改 1: 加入 existingNotes 參數
+const MarkdownEditorModal = ({ note, existingNotes = [], isNew = false, onClose, onSave }) => {
     const [formData, setFormData] = useState({
         category: note?.category || "",
         subcategory: note?.subcategory || "",
         title: note?.title || "",
         content: note?.content || ""
     });
+
+    // 修改 2: 計算現有的分類建議清單
+    const existingCategories = useMemo(() => {
+        return [...new Set(existingNotes.map(n => n.category).filter(Boolean))];
+    }, [existingNotes]);
+
+    // 修改 3: 根據目前輸入的大分類，動態篩選出對應的次分類建議
+    const existingSubcategories = useMemo(() => {
+        if (!formData.category) return []; // 如果沒選大分類，暫時不顯示次分類建議，避免混亂
+        return [...new Set(existingNotes
+            .filter(n => n.category === formData.category)
+            .map(n => n.subcategory)
+            .filter(Boolean)
+        )];
+    }, [existingNotes, formData.category]);
 
     const contentRef = useRef(null);
 
@@ -121,18 +137,33 @@ const MarkdownEditorModal = ({ note, isNew = false, onClose, onSave }) => {
                 
                 <div className="p-4 flex-col flex flex-1 overflow-y-auto custom-scrollbar gap-4">
                     <div className="grid grid-cols-2 gap-3">
-                        <input 
-                            placeholder="大分類 (如：故事結構)"
-                            className="bg-stone-50 border border-stone-200 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-stone-400"
-                            value={formData.category}
-                            onChange={(e) => setFormData({...formData, category: e.target.value})}
-                        />
-                         <input 
-                            placeholder="次分類 (如：三幕劇)"
-                            className="bg-stone-50 border border-stone-200 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-stone-400"
-                            value={formData.subcategory}
-                            onChange={(e) => setFormData({...formData, subcategory: e.target.value})}
-                        />
+                        {/* 修改 4: 大分類輸入框改為使用 datalist */}
+                        <div>
+                            <input 
+                                list="category-list"
+                                placeholder="大分類 (如：故事結構)"
+                                className="w-full bg-stone-50 border border-stone-200 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-stone-400"
+                                value={formData.category}
+                                onChange={(e) => setFormData({...formData, category: e.target.value})}
+                            />
+                            <datalist id="category-list">
+                                {existingCategories.map(c => <option key={c} value={c} />)}
+                            </datalist>
+                        </div>
+                        
+                        {/* 修改 5: 次分類輸入框改為使用 datalist */}
+                        <div>
+                             <input 
+                                list="subcategory-list"
+                                placeholder="次分類 (如：三幕劇)"
+                                className="w-full bg-stone-50 border border-stone-200 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-stone-400"
+                                value={formData.subcategory}
+                                onChange={(e) => setFormData({...formData, subcategory: e.target.value})}
+                            />
+                            <datalist id="subcategory-list">
+                                {existingSubcategories.map(s => <option key={s} value={s} />)}
+                            </datalist>
+                        </div>
                     </div>
                     <input 
                         placeholder="大標題 (必填，如：第一幕：鋪陳)"
@@ -690,6 +721,7 @@ function EchoScriptApp() {
             {showEditModal && (
                 <MarkdownEditorModal 
                     note={isCreatingNew ? null : currentNote} 
+                    existingNotes={notes}  // 新增這一行：傳遞所有筆記資料
                     isNew={isCreatingNew}
                     onClose={() => setShowEditModal(false)} 
                     onSave={handleSaveNote} 
@@ -732,4 +764,5 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 

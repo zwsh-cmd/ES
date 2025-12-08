@@ -1,0 +1,16 @@
+{
+  "name": "EchoScript",
+  "short_name": "EchoScript",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#F5F5F4",
+  "theme_color": "#ffffff",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "icon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

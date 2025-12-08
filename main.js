@@ -190,20 +190,24 @@ const ResponseModal = ({ note, initialResponse, onClose, onSave }) => {
 
 // === 6. 所有筆記列表 Modal (支援分類顯示) ===
 const AllNotesModal = ({ notes, onClose, onItemClick, onDelete }) => {
+    // 狀態：目前顯示層級 ('categories' > 'subcategories' > 'notes')
     const [viewLevel, setViewLevel] = useState('categories');
     const [selectedCategory, setSelectedCategory] = useState(null);
     const [selectedSubcategory, setSelectedSubcategory] = useState(null);
     const [searchTerm, setSearchTerm] = useState("");
 
+    // 1. 取得所有不重複的大分類
     const categories = useMemo(() => {
         return [...new Set(notes.map(n => n.category || "未分類"))];
     }, [notes]);
 
+    // 2. 取得選定大分類下的次分類
     const subcategories = useMemo(() => {
         if (!selectedCategory) return [];
         return [...new Set(notes.filter(n => (n.category || "未分類") === selectedCategory).map(n => n.subcategory || "一般"))];
     }, [notes, selectedCategory]);
 
+    // 3. 取得最終筆記列表
     const targetNotes = useMemo(() => {
         if (!selectedCategory || !selectedSubcategory) return [];
         return notes.filter(n => 
@@ -212,15 +216,16 @@ const AllNotesModal = ({ notes, onClose, onItemClick, onDelete }) => {
         );
     }, [notes, selectedCategory, selectedSubcategory]);
 
+    // 搜尋邏輯 (搜尋時暫時忽略層級)
     const searchResults = useMemo(() => {
         if (!searchTerm) return [];
         return notes.filter(n => 
             (n.title && n.title.includes(searchTerm)) || 
-            (n.content && n.content.includes(searchTerm)) ||
-            (n.category && n.category.includes(searchTerm))
+            (n.content && n.content.includes(searchTerm))
         );
     }, [notes, searchTerm]);
 
+    // 返回上一層邏輯
     const handleBack = () => {
         if (viewLevel === 'notes') {
             setViewLevel('subcategories');
@@ -233,13 +238,16 @@ const AllNotesModal = ({ notes, onClose, onItemClick, onDelete }) => {
 
     return (
         <div className="fixed inset-0 z-40 bg-stone-50 flex flex-col animate-in slide-in-from-right duration-300">
+            {/* 頂部導航列 */}
             <div className="p-4 border-b border-stone-200 bg-white flex justify-between items-center sticky top-0 z-10">
                 <div className="flex items-center gap-2">
+                    {/* 顯示返回按鈕 */}
                     {viewLevel !== 'categories' && !searchTerm && (
                         <button onClick={handleBack} className="p-1 -ml-2 text-stone-500 hover:bg-stone-100 rounded-full mr-1">
                             <IconBase d="M15 18l-6-6 6-6" /> 
                         </button>
                     )}
+                    {/* 標題隨層級變化 */}
                     <h2 className="font-bold text-lg flex items-center gap-2">
                         {searchTerm ? "搜尋結果" : 
                          viewLevel === 'categories' ? "筆記分類" : 
@@ -250,51 +258,53 @@ const AllNotesModal = ({ notes, onClose, onItemClick, onDelete }) => {
                 <button onClick={onClose} className="p-2 bg-stone-100 rounded-full"><X className="w-5 h-5 text-gray-600" /></button>
             </div>
             
+            {/* 搜尋框 */}
             <div className="p-4 bg-stone-50 sticky top-[69px] z-10">
                 <input 
                     type="text" 
-                    placeholder="搜尋筆記..." 
+                    placeholder="搜尋筆記關鍵字..." 
                     className="w-full bg-white border border-stone-200 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-stone-400"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                 />
             </div>
 
+            {/* 列表內容區 */}
             <div className="flex-1 overflow-y-auto p-4 custom-scrollbar pb-20">
                 
-                {/* 模式 A: 搜尋結果 */}
+                {/* 情況 A: 正在搜尋 (顯示扁平列表) */}
                 {searchTerm && (
                     searchResults.length > 0 ? searchResults.map(item => (
-                        <div key={item.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-3 active:scale-[0.99] transition-transform" 
+                        <div key={item.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-3" 
                              onClick={() => onItemClick(item)}>
-                            <div className="flex justify-between items-start mb-1">
-                                <span className="text-xs font-bold text-stone-500 bg-stone-100 px-2 py-1 rounded">{item.category} / {item.subcategory}</span>
-                            </div>
+                            <div className="text-xs text-stone-400 mb-1">{item.category} / {item.subcategory}</div>
                             <h4 className="font-bold text-gray-800">{item.title}</h4>
-                            <p className="text-sm text-gray-500 line-clamp-1 mt-1">{item.content}</p>
                         </div>
                     )) : <div className="text-center text-gray-400 mt-10">沒有找到相關筆記</div>
                 )}
 
-                {/* 模式 B: 層級導航 */}
+                {/* 情況 B: 階層導航 */}
                 {!searchTerm && (
                     <>
+                        {/* Level 1: 大分類列表 */}
                         {viewLevel === 'categories' && categories.map(cat => (
                             <div key={cat} onClick={() => { setSelectedCategory(cat); setViewLevel('subcategories'); }}
-                                 className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 mb-3 flex justify-between items-center cursor-pointer hover:border-stone-300">
+                                 className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 mb-3 flex justify-between items-center cursor-pointer hover:border-stone-300 active:scale-[0.98] transition-transform">
                                 <span className="font-bold text-lg text-stone-800">{cat}</span>
                                 <IconBase d="M9 18l6-6-6-6" className="text-stone-300 w-5 h-5" />
                             </div>
                         ))}
 
+                        {/* Level 2: 次分類列表 */}
                         {viewLevel === 'subcategories' && subcategories.map(sub => (
                             <div key={sub} onClick={() => { setSelectedSubcategory(sub); setViewLevel('notes'); }}
-                                 className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 mb-3 flex justify-between items-center cursor-pointer hover:border-stone-300">
+                                 className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 mb-3 flex justify-between items-center cursor-pointer hover:border-stone-300 active:scale-[0.98] transition-transform">
                                 <span className="font-medium text-lg text-stone-700">{sub}</span>
                                 <IconBase d="M9 18l6-6-6-6" className="text-stone-300 w-5 h-5" />
                             </div>
                         ))}
 
+                        {/* Level 3: 最終筆記列表 */}
                         {viewLevel === 'notes' && targetNotes.map(item => (
                             <div key={item.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-3 active:scale-[0.99] transition-transform" 
                                  onClick={() => onItemClick(item)}>
@@ -368,11 +378,17 @@ function EchoScriptApp() {
         try {
             const savedNotes = JSON.parse(localStorage.getItem('echoScript_AllNotes'));
             let finalNotes;
-            if (savedNotes && savedNotes.length > 0) {
+            
+            // 修改：加入檢查邏輯。如果儲存的資料沒有 'category' 欄位（代表是舊版），則強制使用新的 INITIAL_NOTES
+            if (savedNotes && savedNotes.length > 0 && savedNotes[0].category) {
                 finalNotes = savedNotes;
             } else {
+                console.log("偵測到舊版資料，執行結構升級...");
                 finalNotes = INITIAL_NOTES;
                 localStorage.setItem('echoScript_AllNotes', JSON.stringify(finalNotes));
+                // 建議：一併清除舊的歷史，避免格式衝突
+                localStorage.removeItem('echoScript_History');
+                setHistory([]); 
             }
             setNotes(finalNotes);
             setFavorites(JSON.parse(localStorage.getItem('echoScript_Favorites') || '[]'));
@@ -716,3 +732,4 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+

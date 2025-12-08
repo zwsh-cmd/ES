@@ -58,11 +58,38 @@ class ErrorBoundary extends React.Component {
 // === 4. Markdown 編輯器組件 ===
 // 修改 1: 加入 existingNotes 參數
 // === 新增：Combobox 合體輸入元件 (解決分類被過濾問題) ===
+// === 新增：Markdown 渲染器元件 (顯示預覽用) ===
+const MarkdownRenderer = ({ content }) => {
+    const parseInline = (text) => {
+        const parts = text.split(/(\*\*.*?\*\*|~~.*?~~)/g);
+        return parts.map((part, index) => {
+            if (part.startsWith('**') && part.endsWith('**')) {
+                return <strong key={index} className="text-stone-900 font-extrabold">{part.slice(2, -2)}</strong>;
+            }
+            if (part.startsWith('~~') && part.endsWith('~~')) {
+                return <del key={index} className="text-stone-400">{part.slice(2, -2)}</del>;
+            }
+            return part;
+        });
+    };
+
+    return (
+        <div className="text-lg leading-loose text-stone-700 font-serif text-justify whitespace-pre-wrap">
+            {content.split('\n').map((line, i) => {
+                if (line.startsWith('# ')) return <h1 key={i} className="text-2xl font-bold mt-5 mb-3 text-stone-900">{parseInline(line.slice(2))}</h1>;
+                if (line.startsWith('## ')) return <h2 key={i} className="text-xl font-bold mt-4 mb-2 text-stone-600">{parseInline(line.slice(3))}</h2>;
+                if (line.startsWith('> ')) return <blockquote key={i} className="border-l-4 border-stone-300 pl-4 italic text-stone-500 my-2">{parseInline(line.slice(2))}</blockquote>;
+                return <p key={i} className="mb-2 min-h-[1em]">{parseInline(line)}</p>;
+            })}
+        </div>
+    );
+};
+
+// === Combobox 合體輸入元件 ===
 const Combobox = ({ value, onChange, options, placeholder }) => {
     const [isOpen, setIsOpen] = useState(false);
     const wrapperRef = useRef(null);
 
-    // 點擊外部自動關閉選單
     useEffect(() => {
         const handleClickOutside = (event) => {
             if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
@@ -83,17 +110,15 @@ const Combobox = ({ value, onChange, options, placeholder }) => {
                     onChange={(e) => onChange(e.target.value)}
                     onFocus={() => setIsOpen(true)} 
                 />
-                {/* 下拉箭頭按鈕：點擊切換顯示所有選項 */}
                 <button 
                     className="absolute right-0 top-0 h-full px-3 text-stone-400 hover:text-stone-600 flex items-center justify-center"
                     onClick={() => setIsOpen(!isOpen)}
-                    tabIndex="-1" // 避免 Tab 鍵卡住
+                    tabIndex="-1"
                 >
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
                 </button>
             </div>
             
-            {/* 下拉選單：永遠顯示所有選項，不隨輸入過濾 */}
             {isOpen && options.length > 0 && (
                 <div className="absolute top-full left-0 w-full bg-white border border-stone-200 rounded-lg shadow-xl max-h-48 overflow-y-auto z-50 mt-1 animate-in fade-in duration-100">
                     {options.map(opt => (
@@ -114,7 +139,76 @@ const Combobox = ({ value, onChange, options, placeholder }) => {
     );
 };
 
-// === 4. Markdown 編輯器組件 (已更新使用 Combobox) ===
+// === 新增：HighlightingEditor (支援編輯時高亮的編輯器) ===
+const HighlightingEditor = ({ value, onChange, textareaRef }) => {
+    // 這個函式負責把 markdown 語法轉成有顏色的 HTML (僅供顯示用)
+    const renderHighlights = (text) => {
+        // 防止最後一行換行失效，強制補一個空白
+        const textToRender = text.endsWith('\n') ? text + ' ' : text;
+        
+        return textToRender.split('\n').map((line, i) => {
+            let className = "min-h-[1.5em] ";
+            let content = line;
+
+            // 處理標題 (整行變大)
+            if (line.startsWith('# ')) {
+                className += "text-2xl font-bold text-stone-900";
+            } else if (line.startsWith('## ')) {
+                className += "text-xl font-bold text-stone-800";
+            } else if (line.startsWith('> ')) {
+                className += "italic text-stone-400 border-l-4 border-stone-300 pl-2";
+            } else {
+                className += "text-gray-800"; // 一般文字顏色
+            }
+
+            // 簡單處理行內的粗體 (將 **text** 包在 span 裡)
+            // 注意：這裡只做簡單的 regex 取代，不支援太複雜的巢狀
+            const parts = content.split(/(\*\*.*?\*\*|~~.*?~~)/g);
+            const renderedLine = parts.map((part, idx) => {
+                if (part.startsWith('**') && part.endsWith('**')) {
+                    return <span key={idx} className="font-bold text-stone-900 bg-yellow-100/50 rounded px-0.5">{part}</span>;
+                }
+                if (part.startsWith('~~') && part.endsWith('~~')) {
+                    return <span key={idx} className="line-through text-stone-400">{part}</span>;
+                }
+                return part;
+            });
+
+            return <div key={i} className={className}>{renderedLine}</div>;
+        });
+    };
+
+    const syncScroll = (e) => {
+        const backdrop = e.target.previousSibling;
+        if(backdrop) backdrop.scrollTop = e.target.scrollTop;
+    };
+
+    return (
+        <div className="relative flex-1 w-full border border-stone-200 rounded-lg overflow-hidden bg-white min-h-[200px]">
+            {/* 底層：負責顯示樣式 (Backdrop) */}
+            <div 
+                className="absolute inset-0 p-3 pointer-events-none whitespace-pre-wrap break-words overflow-hidden"
+                style={{ fontFamily: 'inherit', lineHeight: '1.6', fontSize: '1rem' }}
+            >
+                {renderHighlights(value)}
+            </div>
+
+            {/* 上層：負責輸入 (Transparent Textarea) */}
+            <textarea
+                ref={textareaRef}
+                className="absolute inset-0 w-full h-full p-3 bg-transparent text-transparent caret-stone-800 resize-none outline-none whitespace-pre-wrap break-words overflow-y-auto"
+                style={{ fontFamily: 'inherit', lineHeight: '1.6', fontSize: '1rem' }}
+                value={value}
+                onChange={(e) => onChange(e.target.value)}
+                onScroll={syncScroll}
+                placeholder="在此輸入內容... 支援 Markdown"
+                spellCheck="false" 
+            />
+        </div>
+    );
+};
+
+// === 4. Markdown 編輯器組件 (整合高亮編輯器) ===
 const MarkdownEditorModal = ({ note, existingNotes = [], isNew = false, onClose, onSave }) => {
     const [formData, setFormData] = useState({
         category: note?.category || "",
@@ -123,15 +217,13 @@ const MarkdownEditorModal = ({ note, existingNotes = [], isNew = false, onClose,
         content: note?.content || ""
     });
 
-    // 計算建議清單
+    const [activeTab, setActiveTab] = useState('write'); 
+
     const existingCategories = useMemo(() => {
         return [...new Set(existingNotes.map(n => n.category).filter(Boolean))];
     }, [existingNotes]);
 
     const existingSubcategories = useMemo(() => {
-        // 這裡可以選擇是否要根據大分類過濾。
-        // 如果您希望次分類也能看到「所有曾經出現過的次分類」，可以把 filter 拿掉。
-        // 目前保留 filter 比較符合邏輯：選了「故事結構」只出現相關的次分類。
         if (!formData.category) return []; 
         return [...new Set(existingNotes
             .filter(n => n.category === formData.category)
@@ -148,33 +240,25 @@ const MarkdownEditorModal = ({ note, existingNotes = [], isNew = false, onClose,
         const start = textarea.selectionStart;
         const end = textarea.selectionEnd;
         const text = formData.content;
-        
-        // 1. 先取得目前被反白選取的文字
         const selectedText = text.substring(start, end);
-        
         let newText = "";
         let newCursorPos = 0;
 
         if (syntax === "h1") {
-            // 在選取文字前加上 "# "，保留原文字
             newText = text.substring(0, start) + "# " + selectedText + text.substring(end);
             newCursorPos = start + 2 + selectedText.length;
         } else if (syntax === "h2") {
-            // 在選取文字前加上 "## "，保留原文字
             newText = text.substring(0, start) + "## " + selectedText + text.substring(end);
             newCursorPos = start + 3 + selectedText.length;
         } else if (syntax === "bold") {
-            // 粗體原本就是對的，但為了統一邏輯我們也寫清楚
             newText = text.substring(0, start) + "**" + selectedText + "**" + text.substring(end);
             newCursorPos = start + 4 + selectedText.length; 
         } else if (syntax === "quote") {
-            // 在選取文字前加上 "> "，保留原文字
             newText = text.substring(0, start) + "> " + selectedText + text.substring(end);
             newCursorPos = start + 2 + selectedText.length;
         }
 
         setFormData({ ...formData, content: newText });
-        // 設定游標位置停留在修改後的文字後方
         setTimeout(() => { textarea.focus(); textarea.setSelectionRange(newCursorPos, newCursorPos); }, 10);
     };
 
@@ -194,7 +278,6 @@ const MarkdownEditorModal = ({ note, existingNotes = [], isNew = false, onClose,
                 
                 <div className="p-4 flex-col flex flex-1 overflow-y-auto custom-scrollbar gap-4">
                     <div className="grid grid-cols-2 gap-3">
-                        {/* 使用新的合體 Combobox */}
                         <Combobox 
                             placeholder="大分類 (如:故事結構)"
                             value={formData.category}
@@ -216,20 +299,32 @@ const MarkdownEditorModal = ({ note, existingNotes = [], isNew = false, onClose,
                         onChange={(e) => setFormData({...formData, title: e.target.value})}
                     />
 
-                    <div className="flex gap-2 py-2 border-t border-b border-stone-100 overflow-x-auto">
-                        <button onClick={() => insertMarkdown('h1')} className="p-2 hover:bg-stone-100 rounded text-stone-600 flex items-center gap-1 text-xs font-bold" title="大標"><Heading1 className="w-4 h-4"/> 大標</button>
-                        <button onClick={() => insertMarkdown('h2')} className="p-2 hover:bg-stone-100 rounded text-stone-600 flex items-center gap-1 text-xs font-bold" title="小標"><Heading1 className="w-3 h-3"/> 小標</button>
-                        <button onClick={() => insertMarkdown('bold')} className="p-2 hover:bg-stone-100 rounded text-stone-600 flex items-center gap-1 text-xs font-bold" title="粗體"><Bold className="w-4 h-4"/> 粗體</button>
-                        <button onClick={() => insertMarkdown('quote')} className="p-2 hover:bg-stone-100 rounded text-stone-600 flex items-center gap-1 text-xs font-bold" title="引用"><Quote className="w-4 h-4"/> 引用</button>
+                    {/* 工具列與頁籤 */}
+                    <div className="flex justify-between items-center border-b border-stone-100 pb-2">
+                        <div className="flex gap-2">
+                            <button onClick={() => insertMarkdown('h1')} className="p-2 hover:bg-stone-100 rounded text-stone-600 flex items-center gap-1 text-xs font-bold" title="大標"><Heading1 className="w-4 h-4"/> 大標</button>
+                            <button onClick={() => insertMarkdown('h2')} className="p-2 hover:bg-stone-100 rounded text-stone-600 flex items-center gap-1 text-xs font-bold" title="小標"><Heading1 className="w-3 h-3"/> 小標</button>
+                            <button onClick={() => insertMarkdown('bold')} className="p-2 hover:bg-stone-100 rounded text-stone-600 flex items-center gap-1 text-xs font-bold" title="粗體"><Bold className="w-4 h-4"/> 粗體</button>
+                            <button onClick={() => insertMarkdown('quote')} className="p-2 hover:bg-stone-100 rounded text-stone-600 flex items-center gap-1 text-xs font-bold" title="引用"><Quote className="w-4 h-4"/> 引用</button>
+                        </div>
+                        <div className="flex gap-2 text-xs font-bold">
+                             <button onClick={() => setActiveTab('write')} className={`px-2 py-1 rounded ${activeTab === 'write' ? 'bg-stone-200 text-stone-800' : 'text-stone-400'}`}>編輯</button>
+                             <button onClick={() => setActiveTab('preview')} className={`px-2 py-1 rounded ${activeTab === 'preview' ? 'bg-stone-200 text-stone-800' : 'text-stone-400'}`}>預覽</button>
+                        </div>
                     </div>
 
-                    <textarea 
-                        ref={contentRef}
-                        className="flex-1 w-full bg-white p-2 text-gray-800 text-lg leading-relaxed outline-none resize-none min-h-[200px]"
-                        placeholder="輸入內容... 支援 Markdown 語法"
-                        value={formData.content}
-                        onChange={(e) => setFormData({...formData, content: e.target.value})}
-                    />
+                    {/* 根據標籤顯示 編輯器 或 預覽畫面 */}
+                    {activeTab === 'write' ? (
+                        <HighlightingEditor 
+                            value={formData.content} 
+                            onChange={(val) => setFormData({...formData, content: val})} 
+                            textareaRef={contentRef}
+                        />
+                    ) : (
+                        <div className="flex-1 w-full bg-stone-50 p-4 rounded-lg border border-stone-200 overflow-y-auto min-h-[200px]">
+                            <MarkdownRenderer content={formData.content || "（尚未輸入內容）"} />
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
@@ -808,6 +903,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

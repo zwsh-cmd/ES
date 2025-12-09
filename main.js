@@ -495,11 +495,9 @@ const AllNotesModal = ({ notes, onClose, onItemClick, onDelete }) => {
     );
 };
 
-// === 7. NoteListItem (關鍵修復：這裡定義單一筆記在列表中的顯示) ===
-// === 7. NoteListItem (關鍵修復：這裡定義單一筆記在列表中的顯示) ===
+// === 7. NoteListItem (列表項目顯示) ===
 const NoteListItem = ({ item, isHistory }) => (
     <div className="bg-[#1e293b] p-4 rounded-xl shadow-sm border border-slate-700 mb-3" onClick={() => {
-        // 這裡修復了點擊事件，讓它可以正常切換筆記
         const event = new CustomEvent('noteSelected', { detail: item.id });
         window.dispatchEvent(event);
     }}>
@@ -514,15 +512,14 @@ const NoteListItem = ({ item, isHistory }) => (
         
         {item.journalEntry && (
             <div className="mt-3 pt-2 border-t border-slate-700">
-                <p className="text-xs text-stone-500 font-bold flex items-center gap-1"><PenLine className="w-3 h-3"/> 我的回應</p>
-                <p className="text-xs text-gray-500 italic mt-1">{item.journalEntry}</p>
+                <p className="text-xs text-slate-500 font-bold flex items-center gap-1"><PenLine className="w-3 h-3"/> 我的回應</p>
+                <p className="text-xs text-slate-400 italic mt-1">{item.journalEntry}</p>
             </div>
         )}
     </div>
 );
 
 
-// === 主程式 ===
 // === 主程式 ===
 function EchoScriptApp() {
     const [notes, setNotes] = useState([]);
@@ -889,6 +886,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

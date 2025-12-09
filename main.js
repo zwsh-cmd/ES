@@ -516,6 +516,7 @@ const NoteListItem = ({ item, isHistory }) => (
 
 
 // === 主程式 ===
+// === 主程式 ===
 function EchoScriptApp() {
     const [notes, setNotes] = useState([]);
     const [currentIndex, setCurrentIndex] = useState(0);
@@ -541,14 +542,12 @@ function EchoScriptApp() {
             const savedNotes = JSON.parse(localStorage.getItem('echoScript_AllNotes'));
             let finalNotes;
             
-            // 修改：加入檢查邏輯。如果儲存的資料沒有 'category' 欄位（代表是舊版），則強制使用新的 INITIAL_NOTES
             if (savedNotes && savedNotes.length > 0 && savedNotes[0].category) {
                 finalNotes = savedNotes;
             } else {
                 console.log("偵測到舊版資料，執行結構升級...");
                 finalNotes = INITIAL_NOTES;
                 localStorage.setItem('echoScript_AllNotes', JSON.stringify(finalNotes));
-                // 建議：一併清除舊的歷史，避免格式衝突
                 localStorage.removeItem('echoScript_History');
                 setHistory([]); 
             }
@@ -565,7 +564,6 @@ function EchoScriptApp() {
         } catch (e) { console.error("Init failed", e); }
     }, []);
 
-    // 監聽 NoteListItem 的點擊事件
     useEffect(() => {
         const handleNoteSelect = (e) => {
             const noteId = e.detail;
@@ -714,29 +712,53 @@ function EchoScriptApp() {
     };
 
     return (
-        return (
         // 全域背景改為最深的 #0f172a，文字預設白色
         <div className="min-h-screen bg-[#0f172a] text-slate-200 font-sans pb-20">
             {/* 導航列深色背景 */}
             <nav className="sticky top-0 z-30 bg-[#0f172a]/90 backdrop-blur-md px-6 py-4 flex justify-between items-center border-b border-slate-800/50">
                 <div className="flex items-center gap-2">
                     <div className="bg-white text-[#0f172a] p-1 rounded-lg">
-// ...
+                        <FileText className="w-5 h-5" />
+                    </div>
                     <h1 className="text-lg font-bold tracking-tight text-white">EchoScript</h1>
-// ...
+                </div>
+                <div className="flex gap-2">
+                     <button onClick={() => { setIsCreatingNew(true); setShowEditModal(true); }} className="bg-white border border-stone-200 text-stone-600 p-2 rounded-full shadow-sm active:bg-stone-100" title="新增筆記">
+                        <Plus className="w-5 h-5" />
+                    </button>
+                    <button onClick={() => setShowAllNotesModal(true)} className="bg-white border border-stone-200 text-stone-600 p-2 rounded-full shadow-sm active:bg-stone-100" title="所有筆記">
+                        <List className="w-5 h-5" />
+                    </button>
+                    <button onClick={handleNextNote} disabled={isAnimating || notes.length <= 1} className="bg-stone-800 text-stone-50 px-4 py-2 rounded-full text-xs font-bold shadow-lg shadow-stone-300 active:scale-95 transition-transform flex items-center gap-2">
+                        <RefreshCw className={`w-3 h-3 ${isAnimating ? 'animate-spin' : ''}`}/> 下一張
+                    </button>
+                </div>
+            </nav>
+
+            <main className="px-6 py-6 max-w-lg mx-auto" onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
+                {currentNote ? (
+                    <div className={`transition-all duration-500 ${isAnimating ? 'opacity-0 translate-y-4' : 'opacity-100 translate-y-0'}`}>
                         {/* 主卡片改為 #1e293b */}
                         <div className="bg-[#1e293b] rounded-xl shadow-xl border border-slate-700 overflow-hidden relative min-h-[400px] flex flex-col">
                             <div className="h-2 bg-white w-full"></div>
-// ...
+                            <div className="p-8 flex-1 flex flex-col">
+                                <div className="mb-6 border-b border-slate-700 pb-4">
+                                    <div className="flex justify-between items-baseline mb-1">
                                         <h2 className="text-sm font-bold text-slate-500 tracking-widest uppercase">{currentNote.category || "未分類"}</h2>
                                         <span className="text-xs text-slate-600 font-serif">#{currentNote.id.toString().slice(-3)}</span>
                                     </div>
                                     <h3 className="text-xl font-serif text-slate-400 italic">{currentNote.subcategory}</h3>
                                 </div>
+                                
                                 <div className="flex-1">
                                     <h1 className="text-2xl font-bold text-white mb-4">{currentNote.title}</h1>
                                     <div className="text-lg leading-loose text-slate-300 font-serif text-justify whitespace-pre-wrap">
-// ...
+                                        {/* 這裡是主畫面渲染卡片內容的地方，也需要使用新的渲染邏輯 */}
+                                        <MarkdownRenderer content={currentNote.content} />
+                                    </div>
+                                </div>
+                            </div>
+
                             {/* 卡片底部深色 */}
                             <div className="bg-[#0f172a]/50 px-6 py-4 border-t border-slate-700 flex justify-between items-center">
                                 <button onClick={() => { setIsCreatingNew(false); setShowEditModal(true); }} className="flex flex-col items-center gap-1 text-stone-400 hover:text-stone-800 transition-colors">
@@ -822,7 +844,7 @@ function EchoScriptApp() {
             {showEditModal && (
                 <MarkdownEditorModal 
                     note={isCreatingNew ? null : currentNote} 
-                    existingNotes={notes}  // 新增這一行：傳遞所有筆記資料
+                    existingNotes={notes}
                     isNew={isCreatingNew}
                     onClose={() => setShowEditModal(false)} 
                     onSave={handleSaveNote} 
@@ -865,6 +887,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

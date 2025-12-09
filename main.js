@@ -423,11 +423,14 @@ const AllNotesModal = ({ notes, onClose, onItemClick, onDelete }) => {
     }, [notes, selectedCategory, selectedSubcategory]);
 
     // 搜尋邏輯 (搜尋時暫時忽略層級)
+    // 搜尋邏輯 (搜尋時暫時忽略層級)
     const searchResults = useMemo(() => {
         if (!searchTerm) return [];
         return notes.filter(n => 
             (n.title && n.title.includes(searchTerm)) || 
-            (n.content && n.content.includes(searchTerm))
+            (n.content && n.content.includes(searchTerm)) ||
+            (n.category && n.category.includes(searchTerm)) || 
+            (n.subcategory && n.subcategory.includes(searchTerm))
         );
     }, [notes, searchTerm]);
 
@@ -939,6 +942,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

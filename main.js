@@ -89,6 +89,7 @@ const MarkdownRenderer = ({ content }) => {
 };
 
 // === Combobox 合體輸入元件 ===
+// === Combobox 合體輸入元件 ===
 const Combobox = ({ value, onChange, options, placeholder }) => {
     const [isOpen, setIsOpen] = useState(false);
     const wrapperRef = useRef(null);
@@ -107,20 +108,26 @@ const Combobox = ({ value, onChange, options, placeholder }) => {
         <div className="relative" ref={wrapperRef}>
             <div className="relative">
                 <input 
-                    <input 
-                    // 深藍底、白字、深色邊框
                     className="w-full bg-[#0f172a] border border-slate-700 rounded-lg p-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-slate-500 pr-8 placeholder-slate-500"
-// ...
+                    placeholder={placeholder}
+                    value={value}
+                    onChange={(e) => onChange(e.target.value)}
+                    onFocus={() => setIsOpen(true)} 
+                />
                 <button 
                     className="absolute right-0 top-0 h-full px-3 text-slate-400 hover:text-white flex items-center justify-center"
-// ...
+                    onClick={() => setIsOpen(!isOpen)}
+                    tabIndex="-1"
+                >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                </button>
+            </div>
+            
             {isOpen && options.length > 0 && (
-                // 下拉選單深色背景
                 <div className="absolute top-full left-0 w-full bg-[#1e293b] border border-slate-700 rounded-lg shadow-xl max-h-48 overflow-y-auto z-50 mt-1 animate-in fade-in duration-100">
                     {options.map(opt => (
                         <div 
                             key={opt} 
-                            // 選項文字顏色與 hover 效果
                             className="px-4 py-2 hover:bg-slate-700 cursor-pointer text-sm text-slate-200 border-b border-slate-700 last:border-0"
                             onClick={() => {
                                 onChange(opt);
@@ -887,6 +894,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

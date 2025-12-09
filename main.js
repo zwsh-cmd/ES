@@ -67,18 +67,18 @@ const MarkdownRenderer = ({ content }) => {
         const parts = text.split(/(\*\*.*?\*\*|~~.*?~~)/g);
         return parts.map((part, index) => {
             if (part.startsWith('**') && part.endsWith('**')) {
-                // 改為白色粗體
                 return <strong key={index} className="text-white font-extrabold">{part.slice(2, -2)}</strong>;
             }
             if (part.startsWith('~~') && part.endsWith('~~')) {
                 return <del key={index} className="text-slate-500">{part.slice(2, -2)}</del>;
             }
-// ...
+            return part;
+        });
+    };
+
     return (
-        // 內文改為淺灰 (slate-300)
         <div className="text-lg leading-loose text-slate-300 font-serif text-justify whitespace-pre-wrap">
             {content.split('\n').map((line, i) => {
-                // 標題改為白色 (text-white) 和 淺灰 (text-slate-200)
                 if (line.startsWith('# ')) return <h1 key={i} className="text-2xl font-bold mt-5 mb-3 text-white">{parseInline(line.slice(2))}</h1>;
                 if (line.startsWith('## ')) return <h2 key={i} className="text-xl font-bold mt-4 mb-2 text-slate-200">{parseInline(line.slice(3))}</h2>;
                 if (line.startsWith('> ')) return <blockquote key={i} className="border-l-4 border-slate-600 pl-4 italic text-slate-400 my-2">{parseInline(line.slice(2))}</blockquote>;
@@ -227,46 +227,30 @@ const MarkdownEditorModal = ({ note, existingNotes = [], isNew = false, onClose,
         if (!textarea) return;
 
         const text = formData.content;
-        const start = textarea.selectionStart; // 游標起點
-        const end = textarea.selectionEnd;     // 游標終點
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
 
         let newText = "";
         let newCursorPos = 0;
 
-        // 邏輯分流：粗體針對「選取範圍」，其他針對「整行」
         if (syntax === "bold") {
             const selectedText = text.substring(start, end);
-            // 粗體維持原樣：在選取文字前後加星星
             newText = text.substring(0, start) + "**" + selectedText + "**" + text.substring(end);
-            newCursorPos = end + 4; // 游標停在粗體後
+            newCursorPos = end + 4; 
         } else {
-            // H1, H2, 引用：針對「游標所在的整行」操作
-            
-            // 1. 找出該行的「開頭」 (往回找換行符號)
-            // 如果 lastIndexOf 找不到會回傳 -1，所以 +1 剛好是 0 (文章開頭)
             const lineStart = text.lastIndexOf('\n', start - 1) + 1;
-            
-            // 2. 找出該行的「結尾」 (往後找換行符號)
             let lineEnd = text.indexOf('\n', start);
-            if (lineEnd === -1) lineEnd = text.length; // 如果找不到，代表是最後一行
+            if (lineEnd === -1) lineEnd = text.length; 
 
-            // 3. 取得該行目前的內容
             const lineContent = text.substring(lineStart, lineEnd);
-
-            // 4. 清理該行原本可能有的 Markdown 符號 (避免變成 # # 標題)
-            // Regex 意思：移除開頭的 (#號加空白) 或 (>號加空白)
             const cleanContent = lineContent.replace(/^(\#+\s|>\s)/, '');
 
-            // 5. 決定要加上什麼前綴
             let prefix = "";
             if (syntax === "h1") prefix = "# ";
             if (syntax === "h2") prefix = "## ";
             if (syntax === "quote") prefix = "> ";
 
-            // 6. 組合新字串： (文章前半段) + (新前綴 + 乾淨的行內容) + (文章後半段)
             newText = text.substring(0, lineStart) + prefix + cleanContent + text.substring(lineEnd);
-
-            // 7. 設定游標停在該行修改後的末端
             newCursorPos = lineStart + prefix.length + cleanContent.length;
         }
 
@@ -283,9 +267,7 @@ const MarkdownEditorModal = ({ note, existingNotes = [], isNew = false, onClose,
     };
 
     return (
-        // 背景遮罩維持深色半透明
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex justify-center items-end sm:items-center p-0 sm:p-4 animate-in fade-in duration-200" onClick={(e) => { if(e.target === e.currentTarget) onClose(); }}>
-            // 視窗主體改為深藍色 bg-[#1e293b]
             <div className="bg-[#1e293b] w-full max-w-lg h-[90%] sm:h-auto sm:max-h-[90vh] rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col border border-slate-700">
                 <nav className="flex justify-between items-center p-4 border-b border-slate-700">
                     <button onClick={onClose} className="text-slate-400 hover:text-white px-2">取消</button>
@@ -294,16 +276,31 @@ const MarkdownEditorModal = ({ note, existingNotes = [], isNew = false, onClose,
                 </nav>
                 
                 <div className="p-4 flex-col flex flex-1 overflow-y-auto custom-scrollbar gap-4">
-// ...
+                    <div className="grid grid-cols-2 gap-3">
+                        <Combobox 
+                            placeholder="大分類 (如:故事結構)"
+                            value={formData.category}
+                            onChange={(val) => setFormData(prev => ({...prev, category: val}))}
+                            options={existingCategories}
+                        />
+                        <Combobox 
+                            placeholder="次分類 (如:三幕劇)"
+                            value={formData.subcategory}
+                            onChange={(val) => setFormData(prev => ({...prev, subcategory: val}))}
+                            options={existingSubcategories}
+                        />
+                    </div>
+
                     <input 
                         placeholder="大標題 (必填，如：第一幕：鋪陳)"
                         className="bg-[#0f172a] border border-slate-700 rounded-lg p-3 font-bold text-white focus:outline-none focus:ring-2 focus:ring-slate-500 placeholder-slate-500"
-// ...
-                    {/* 工具列：分隔線改深色，按鈕文字改淺色，hover背景改深色 */}
+                        value={formData.title}
+                        onChange={(e) => setFormData({...formData, title: e.target.value})}
+                    />
+
                     <div className="flex justify-between items-center border-b border-slate-700 pb-2">
                         <div className="flex gap-1 overflow-x-auto no-scrollbar">
                             <button onClick={() => insertMarkdown('normal')} className="p-2 hover:bg-slate-700 rounded text-slate-400 hover:text-white flex items-center gap-1 text-xs font-bold min-w-fit" title="內文"><Type className="w-4 h-4"/> 內文</button>
-                            {/* ... 其他按鈕的 class 也要將 hover:bg-stone-100 改為 hover:bg-slate-700， text-stone-600 改為 text-slate-400 ... */}
                             <button onClick={() => insertMarkdown('h1')} className="p-2 hover:bg-slate-700 rounded text-slate-400 hover:text-white flex items-center gap-1 text-xs font-bold min-w-fit" title="大標"><Heading1 className="w-5 h-5"/> 大標</button>
                             <button onClick={() => insertMarkdown('h2')} className="p-2 hover:bg-slate-700 rounded text-slate-400 hover:text-white flex items-center gap-1 text-xs font-bold min-w-fit" title="小標"><Heading2 className="w-5 h-5"/> 小標</button>
                             <button onClick={() => insertMarkdown('bold')} className="p-2 hover:bg-slate-700 rounded text-slate-400 hover:text-white flex items-center gap-1 text-xs font-bold min-w-fit" title="粗體"><Bold className="w-4 h-4"/> 粗體</button>
@@ -315,7 +312,6 @@ const MarkdownEditorModal = ({ note, existingNotes = [], isNew = false, onClose,
                         </div>
                     </div>
 
-                    {/* 根據標籤顯示 編輯器 或 預覽畫面 */}
                     {activeTab === 'write' ? (
                         <HighlightingEditor 
                             value={formData.content} 
@@ -723,9 +719,7 @@ function EchoScriptApp() {
     };
 
     return (
-        // 全域背景改為最深的 #0f172a，文字預設白色
         <div className="min-h-screen bg-[#0f172a] text-slate-200 font-sans pb-20">
-            {/* 導航列深色背景 */}
             <nav className="sticky top-0 z-30 bg-[#0f172a]/90 backdrop-blur-md px-6 py-4 flex justify-between items-center border-b border-slate-800/50">
                 <div className="flex items-center gap-2">
                     <div className="bg-white text-[#0f172a] p-1 rounded-lg">
@@ -749,7 +743,6 @@ function EchoScriptApp() {
             <main className="px-6 py-6 max-w-lg mx-auto" onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
                 {currentNote ? (
                     <div className={`transition-all duration-500 ${isAnimating ? 'opacity-0 translate-y-4' : 'opacity-100 translate-y-0'}`}>
-                        {/* 主卡片改為 #1e293b */}
                         <div className="bg-[#1e293b] rounded-xl shadow-xl border border-slate-700 overflow-hidden relative min-h-[400px] flex flex-col">
                             <div className="h-2 bg-white w-full"></div>
                             <div className="p-8 flex-1 flex flex-col">
@@ -764,13 +757,11 @@ function EchoScriptApp() {
                                 <div className="flex-1">
                                     <h1 className="text-2xl font-bold text-white mb-4">{currentNote.title}</h1>
                                     <div className="text-lg leading-loose text-slate-300 font-serif text-justify whitespace-pre-wrap">
-                                        {/* 這裡是主畫面渲染卡片內容的地方，也需要使用新的渲染邏輯 */}
                                         <MarkdownRenderer content={currentNote.content} />
                                     </div>
                                 </div>
                             </div>
 
-                            {/* 卡片底部深色 */}
                             <div className="bg-[#0f172a]/50 px-6 py-4 border-t border-slate-700 flex justify-between items-center">
                                 <button onClick={() => { setIsCreatingNew(false); setShowEditModal(true); }} className="flex flex-col items-center gap-1 text-stone-400 hover:text-stone-800 transition-colors">
                                     <Edit className="w-5 h-5" />
@@ -898,6 +889,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

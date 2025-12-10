@@ -909,8 +909,8 @@ function EchoScriptApp() {
                                     </div>
                                 </div>
 
-                                {/* 操作按鈕區 (移至此處) */}
-                                <div className="mt-8 pt-6 border-t border-stone-100 flex justify-between items-center px-4">
+                                {/* 操作按鈕區 */}
+                                <div className="mt-4 pt-3 pb-1 border-t border-stone-100 flex justify-between items-center px-2">
                                     <button onClick={() => { setIsCreatingNew(false); setShowEditModal(true); }} className="flex flex-col items-center gap-1 text-stone-400 hover:text-stone-800 transition-colors">
                                         <Edit className="w-6 h-6" />
                                         <span className="text-[9px] font-bold">修改筆記</span>
@@ -936,35 +936,37 @@ function EchoScriptApp() {
                                         <span className="text-[9px] font-bold">複製 MD</span>
                                     </button>
                                 </div>
-
-                                {/* 新增：首頁回應顯示區 (新 -> 舊) */}
-                                {currentNoteResponses.length > 0 && (
-                                    <div className="mt-8 pt-6 border-t border-stone-100 animate-in fade-in slide-in-from-bottom-2">
-                                        <h4 className="text-xs font-bold text-stone-400 mb-4 tracking-widest uppercase flex items-center gap-2">
-                                            <PenLine className="w-3 h-3"/> 回應紀錄
-                                        </h4>
-                                        <div className="space-y-6">
-                                            {currentNoteResponses.map(resp => (
-                                                <div key={resp.id} className="relative pl-4 border-l-2 border-stone-200">
-                                                    {/* 裝飾小圓點 */}
-                                                    <div className="absolute -left-[5px] top-1.5 w-2 h-2 rounded-full bg-stone-300"></div>
-                                                    
-                                                    {/* 日期 (年月日) */}
-                                                    <p className="text-[10px] text-stone-400 font-mono mb-1">
-                                                        {new Date(resp.timestamp).toLocaleDateString()}
-                                                    </p>
-                                                    
-                                                    {/* 回應內容 */}
-                                                    <div className="text-sm text-stone-600 whitespace-pre-wrap leading-relaxed break-words" style={{ whiteSpace: 'pre-wrap' }}>
-                                                        {resp.text}
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
                             </div>
 
+                            {/* 獨立的回應列表 (位於卡片下方) */}
+                        {currentNoteResponses.length > 0 && (
+                            <div className="mt-6 px-4 animate-in fade-in slide-in-from-bottom-3">
+                                <div className="flex items-center gap-3 mb-4 opacity-60">
+                                    <div className="h-px bg-stone-300 flex-1"></div>
+                                    <span className="text-[10px] font-bold text-stone-500 tracking-widest uppercase">回應紀錄</span>
+                                    <div className="h-px bg-stone-300 flex-1"></div>
+                                </div>
+                                
+                                <div className="space-y-4">
+                                    {currentNoteResponses.map(resp => (
+                                        <div key={resp.id} className="relative pl-4 border-l-2 border-stone-300 py-1">
+                                            {/* 裝飾小圓點 */}
+                                            <div className="absolute -left-[5px] top-2 w-2 h-2 rounded-full bg-stone-400"></div>
+                                            
+                                            {/* 日期 */}
+                                            <p className="text-[10px] text-stone-400 font-mono mb-1">
+                                                {new Date(resp.timestamp).toLocaleDateString()}
+                                            </p>
+                                            
+                                            {/* 回應內容 */}
+                                            <div className="text-sm text-stone-600 whitespace-pre-wrap leading-relaxed break-words" style={{ whiteSpace: 'pre-wrap' }}>
+                                                {resp.text}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                             
                         </div>
                     </div>
@@ -1081,6 +1083,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

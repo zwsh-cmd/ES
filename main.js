@@ -884,7 +884,7 @@ function EchoScriptApp() {
                                 </div>
                             </div>
 
-                            <div className="bg-stone-50 px-2 py-4 border-t border-stone-100 grid grid-cols-4 justify-items-center items-center">
+                            <div className="bg-stone-50 px-4 py-4 border-t border-stone-100 flex justify-center items-center gap-8">
                                 <button onClick={() => { setIsCreatingNew(false); setShowEditModal(true); }} className="flex flex-col items-center gap-1 text-stone-400 hover:text-stone-800 transition-colors">
                                     <Edit className="w-5 h-5" />
                                     <span className="text-[10px] font-bold">修改筆記</span>
@@ -1012,6 +1012,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

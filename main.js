@@ -631,6 +631,7 @@ const NoteListItem = ({ item, isHistory, allResponses }) => {
 
 
 // === 主程式 ===
+// === 主程式 ===
 function EchoScriptApp() {
     const [notes, setNotes] = useState([]);
     const [currentIndex, setCurrentIndex] = useState(0);
@@ -682,7 +683,6 @@ function EchoScriptApp() {
         } catch (e) { console.error("Init failed", e); }
     }, []);
 
-    // 監聽 NoteListItem 的點擊事件
     useEffect(() => {
         const handleNoteSelect = (e) => {
             const noteId = e.detail;
@@ -740,16 +740,14 @@ function EchoScriptApp() {
         }, 300);
     };
 
-   const handleSaveNote = (updatedNote) => {
+    const handleSaveNote = (updatedNote) => {
         const now = new Date().toISOString();
         if (isCreatingNew) {
-            // 新增：寫入建立日期與修改日期
             const newNote = { ...updatedNote, createdDate: now, modifiedDate: now };
             setNotes(prev => [newNote, ...prev]);
             setCurrentIndex(0);
             showNotification("新筆記已建立");
         } else {
-            // 修改：只更新修改日期 (如果原本沒有建立日期，則補上)
             const editedNote = { 
                 ...updatedNote, 
                 createdDate: updatedNote.createdDate || now,
@@ -808,7 +806,7 @@ function EchoScriptApp() {
     };
 
     const handleBackup = () => {
-        const data = { favorites, history, notes, version: "EchoScript_v2", date: new Date().toISOString() };
+        const data = { favorites, history, notes, allResponses, version: "EchoScript_v3", date: new Date().toISOString() };
         const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -828,6 +826,7 @@ function EchoScriptApp() {
                 const data = JSON.parse(ev.target.result);
                 if (data.favorites) setFavorites(data.favorites);
                 if (data.history) setHistory(data.history);
+                if (data.allResponses) setAllResponses(data.allResponses);
                 if (data.notes) {
                     setNotes(data.notes);
                     showNotification("資料庫還原成功！");
@@ -874,17 +873,15 @@ function EchoScriptApp() {
             <main className="px-6 py-6 max-w-lg mx-auto" onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
                 {currentNote ? (
                     <div className={`transition-all duration-500 ${isAnimating ? 'opacity-0 translate-y-4' : 'opacity-100 translate-y-0'}`}>
-                        {/* 這裡就是主卡片顯示的地方 */}
+                        {/* 主卡片區域 (包含內容與按鈕) */}
                         <div className="bg-white rounded-xl shadow-xl border border-stone-200 overflow-hidden relative min-h-[400px] flex flex-col">
                             <div className="h-2 bg-stone-800 w-full"></div>
                             <div className="p-8 flex-1 flex flex-col">
                                 <div className="mb-6 border-b border-stone-100 pb-4">
                                     <div className="flex justify-between items-baseline mb-1">
-                                        {/* 1. 顯示大分類 Category */}
                                         <h2 className="text-sm font-bold text-stone-400 tracking-widest uppercase">{currentNote.category || "未分類"}</h2>
                                         <span className="text-xs text-stone-300 font-serif">#{currentNote.id.toString().slice(-3)}</span>
                                     </div>
-                                    {/* 2. 顯示次分類 Subcategory */}
                                     <h3 className="text-xl font-serif text-stone-600 italic">{currentNote.subcategory}</h3>
                                     
                                     {/* 日期顯示區 */}
@@ -895,50 +892,43 @@ function EchoScriptApp() {
                                 </div>
                                 
                                 <div className="flex-1">
-                                    {/* 3. 顯示大標題 Title */}
                                     <h1 className="text-2xl font-bold text-stone-900 mb-4">{currentNote.title}</h1>
-                                    
-                                    {/* 4. 顯示內容 Content */}
                                     <div className="text-lg leading-loose text-stone-700 font-serif text-justify whitespace-pre-wrap">
-                                        {currentNote.content.split('\n').map((line, i) => {
-                                            if (line.startsWith('# ')) return <h1 key={i} className="text-2xl font-bold mt-4 mb-2">{line.slice(2)}</h1>;
-                                            if (line.startsWith('## ')) return <h2 key={i} className="text-xl font-bold mt-3 mb-2 text-stone-600">{line.slice(3)}</h2>;
-                                            if (line.startsWith('> ')) return <blockquote key={i} className="border-l-4 border-stone-300 pl-4 italic text-stone-500 my-2">{line.slice(2)}</blockquote>;
-                                            return <p key={i} className="mb-2">{line}</p>;
-                                        })}
+                                        <MarkdownRenderer content={currentNote.content} />
                                     </div>
                                 </div>
+                            </div>
 
-                                {/* 操作按鈕區 */}
-                                <div className="mt-4 pt-3 pb-1 border-t border-stone-100 flex justify-between items-center px-2">
-                                    <button onClick={() => { setIsCreatingNew(false); setShowEditModal(true); }} className="flex flex-col items-center gap-1 text-stone-400 hover:text-stone-800 transition-colors">
-                                        <Edit className="w-6 h-6" />
-                                        <span className="text-[9px] font-bold">修改筆記</span>
-                                    </button>
-                                    
-                                    <button onClick={() => setShowResponseModal(true)} className="flex flex-col items-center gap-1 text-stone-400 hover:text-stone-800 transition-colors relative">
-                                        <PenLine className="w-6 h-6" />
-                                        <span className="text-[9px] font-bold">回應</span>
-                                        {currentNoteResponses.length > 0 && (
-                                            <span className="absolute -top-1 -right-2 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] text-white border-2 border-white">
-                                                {currentNoteResponses.length}
-                                            </span>
-                                        )}
-                                    </button>
+                            {/* 操作按鈕區 (位於卡片內部底部) */}
+                            <div className="bg-stone-50 px-12 py-4 border-t border-stone-100 flex justify-between items-center">
+                                <button onClick={() => { setIsCreatingNew(false); setShowEditModal(true); }} className="flex flex-col items-center gap-1 text-stone-400 hover:text-stone-800 transition-colors">
+                                    <Edit className="w-6 h-6" />
+                                    <span className="text-[9px] font-bold">修改筆記</span>
+                                </button>
+                                
+                                <button onClick={() => setShowResponseModal(true)} className="flex flex-col items-center gap-1 text-stone-400 hover:text-stone-800 transition-colors relative">
+                                    <PenLine className="w-6 h-6" />
+                                    <span className="text-[9px] font-bold">回應</span>
+                                    {currentNoteResponses.length > 0 && (
+                                        <span className="absolute -top-1 -right-2 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] text-white border-2 border-stone-50">
+                                            {currentNoteResponses.length}
+                                        </span>
+                                    )}
+                                </button>
 
-                                    <button onClick={handleToggleFavorite} className={`flex flex-col items-center gap-1 transition-colors ${isFavorite ? 'text-red-500' : 'text-stone-400 hover:text-stone-800'}`}>
-                                        <Heart className="w-6 h-6" fill={isFavorite ? "currentColor" : "none"} />
-                                        <span className="text-[9px] font-bold">收藏</span>
-                                    </button>
+                                <button onClick={handleToggleFavorite} className={`flex flex-col items-center gap-1 transition-colors ${isFavorite ? 'text-red-500' : 'text-stone-400 hover:text-stone-800'}`}>
+                                    <Heart className="w-6 h-6" fill={isFavorite ? "currentColor" : "none"} />
+                                    <span className="text-[9px] font-bold">收藏</span>
+                                </button>
 
-                                    <button onClick={handleCopyMarkdown} className="flex flex-col items-center gap-1 text-stone-400 hover:text-stone-800 transition-colors">
+                                <button onClick={handleCopyMarkdown} className="flex flex-col items-center gap-1 text-stone-400 hover:text-stone-800 transition-colors">
                                     <Copy className="w-6 h-6" />
                                     <span className="text-[9px] font-bold">複製 MD</span>
                                 </button>
                             </div>
-                        </div> {/* <--- 這裡！卡片在這裡就結束了！ */}
+                        </div> {/* 卡片結束 */}
 
-                        {/* 獨立的回應列表 (現在它位於卡片 div 的外面了) */}
+                        {/* 獨立的回應列表 (位於卡片下方) */}
                         {currentNoteResponses.length > 0 && (
                             <div className="mt-6 px-4 animate-in fade-in slide-in-from-bottom-3">
                                 <div className="flex items-center gap-3 mb-4 opacity-60">
@@ -1081,6 +1071,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

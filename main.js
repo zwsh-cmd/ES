@@ -908,6 +908,33 @@ function EchoScriptApp() {
                                         })}
                                     </div>
                                 </div>
+
+                                {/* 新增：首頁回應顯示區 (新 -> 舊) */}
+                                {currentNoteResponses.length > 0 && (
+                                    <div className="mt-8 pt-6 border-t border-stone-100 animate-in fade-in slide-in-from-bottom-2">
+                                        <h4 className="text-xs font-bold text-stone-400 mb-4 tracking-widest uppercase flex items-center gap-2">
+                                            <PenLine className="w-3 h-3"/> 回應紀錄
+                                        </h4>
+                                        <div className="space-y-6">
+                                            {currentNoteResponses.map(resp => (
+                                                <div key={resp.id} className="relative pl-4 border-l-2 border-stone-200">
+                                                    {/* 裝飾小圓點 */}
+                                                    <div className="absolute -left-[5px] top-1.5 w-2 h-2 rounded-full bg-stone-300"></div>
+                                                    
+                                                    {/* 日期 (年月日) */}
+                                                    <p className="text-[10px] text-stone-400 font-mono mb-1">
+                                                        {new Date(resp.timestamp).toLocaleDateString()}
+                                                    </p>
+                                                    
+                                                    {/* 回應內容 */}
+                                                    <div className="text-sm text-stone-600 italic whitespace-pre-wrap leading-relaxed">
+                                                        {resp.text}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
 
                             <div className="bg-stone-50 px-12 py-4 border-t border-stone-100 flex justify-between items-center">
@@ -1051,6 +1078,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

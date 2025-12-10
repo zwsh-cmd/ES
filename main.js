@@ -932,13 +932,13 @@ function EchoScriptApp() {
                                     </button>
 
                                     <button onClick={handleCopyMarkdown} className="flex flex-col items-center gap-1 text-stone-400 hover:text-stone-800 transition-colors">
-                                        <Copy className="w-6 h-6" />
-                                        <span className="text-[9px] font-bold">複製 MD</span>
-                                    </button>
-                                </div>
+                                    <Copy className="w-6 h-6" />
+                                    <span className="text-[9px] font-bold">複製 MD</span>
+                                </button>
                             </div>
+                        </div> {/* <--- 這裡！卡片在這裡就結束了！ */}
 
-                            {/* 獨立的回應列表 (位於卡片下方) */}
+                        {/* 獨立的回應列表 (現在它位於卡片 div 的外面了) */}
                         {currentNoteResponses.length > 0 && (
                             <div className="mt-6 px-4 animate-in fade-in slide-in-from-bottom-3">
                                 <div className="flex items-center gap-3 mb-4 opacity-60">
@@ -967,8 +967,6 @@ function EchoScriptApp() {
                                 </div>
                             </div>
                         )}
-                            
-                        </div>
                     </div>
                 ) : (
                     <div className="flex flex-col items-center justify-center py-20 text-stone-400">
@@ -1083,6 +1081,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

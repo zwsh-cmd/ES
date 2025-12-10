@@ -590,33 +590,44 @@ const AllNotesModal = ({ notes, onClose, onItemClick, onDelete }) => {
     );
 };
 
-// === 7. NoteListItem (關鍵修復：這裡定義單一筆記在列表中的顯示) ===
-const NoteListItem = ({ item, isHistory }) => (
-    <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-3" onClick={() => {
-        // 這裡會觸發點擊事件，由父組件處理
-        const event = new CustomEvent('noteSelected', { detail: item.id });
-        window.dispatchEvent(event);
-    }}>
-        <div className="flex justify-between items-start mb-2">
-            <div>
-                {/* 顯示分類 */}
-                <span className="text-xs font-bold text-stone-500 bg-stone-100 px-2 py-1 rounded">{item.category || "未分類"}</span>
-                <span className="text-xs text-gray-400 ml-2">{item.subcategory}</span>
+// === 8. 列表項目 (給收藏與歷史使用) ===
+const NoteListItem = ({ item, isHistory, allResponses }) => {
+    // 取得該筆記的所有新回應
+    const newResponses = allResponses ? (allResponses[item.id] || []) : [];
+    // 決定要顯示哪一個回應：如果有新回應，顯示最新的一則 (index 0)；如果沒有，顯示舊的 journalEntry
+    const displayResponse = newResponses.length > 0 ? newResponses[0].text : item.journalEntry;
+    // 計算總回應數
+    const responseCount = newResponses.length;
+
+    return (
+        <div className="bg-stone-50 p-4 rounded-xl shadow-sm border border-stone-200 mb-3" onClick={() => {
+            const event = new CustomEvent('noteSelected', { detail: item.id });
+            window.dispatchEvent(event);
+        }}>
+            <div className="flex justify-between items-start mb-2">
+                <div>
+                    <span className="text-[10px] font-bold text-stone-500 bg-stone-200 px-2 py-1 rounded">{item.category || "未分類"}</span>
+                    <span className="text-[10px] text-stone-400 ml-2">{item.subcategory}</span>
+                </div>
             </div>
+            <h4 className="font-bold text-stone-800 mb-1">{item.title}</h4>
+            <p className="text-xs text-stone-500 line-clamp-2">{item.content}</p>
+            
+            {displayResponse && (
+                <div className="mt-3 pt-2 border-t border-stone-200">
+                    <div className="flex justify-between items-center mb-1">
+                        <p className="text-[10px] text-stone-400 font-bold flex items-center gap-1">
+                            <PenLine className="w-3 h-3"/> 
+                            {newResponses.length > 0 ? `最新回應 (${newResponses.length})` : "我的回應"}
+                        </p>
+                        {newResponses.length > 0 && <span className="text-[9px] text-stone-300">{new Date(newResponses[0].timestamp).toLocaleDateString()}</span>}
+                    </div>
+                    <p className="text-xs text-stone-600 italic line-clamp-2">{displayResponse}</p>
+                </div>
+            )}
         </div>
-        {/* 顯示標題 */}
-        <h4 className="font-bold text-gray-800 mb-1">{item.title}</h4>
-        {/* 顯示內容預覽 */}
-        <p className="text-sm text-gray-600 line-clamp-2">{item.content}</p>
-        
-        {item.journalEntry && (
-            <div className="mt-3 pt-2 border-t border-gray-50">
-                <p className="text-xs text-stone-500 font-bold flex items-center gap-1"><PenLine className="w-3 h-3"/> 我的回應</p>
-                <p className="text-xs text-gray-500 italic mt-1">{item.journalEntry}</p>
-            </div>
-        )}
-    </div>
-);
+    );
+};
 
 
 // === 主程式 ===
@@ -940,10 +951,23 @@ function EchoScriptApp() {
                             ))}
                         </div>
                         <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
-                            {activeTab === 'favorites' && favorites.map(item => <NoteListItem key={item.id} item={item} />)}
-                            {activeTab === 'favorites' && favorites.length === 0 && <div className="text-center text-gray-400 mt-10 text-sm">暫無收藏</div>}
+                            {activeTab === 'favorites' && favorites.map(item => (
+                                <NoteListItem 
+                                    key={item.id} 
+                                    item={item} 
+                                    allResponses={allResponses} 
+                                />
+                            ))}
+                            {activeTab === 'favorites' && favorites.length === 0 && <div className="text-center text-stone-400 mt-10 text-xs">暫無收藏</div>}
                             
-                            {activeTab === 'history' && history.map((item, i) => <NoteListItem key={i} item={item} isHistory />)}
+                            {activeTab === 'history' && history.map((item, i) => (
+                                <NoteListItem 
+                                    key={i} 
+                                    item={item} 
+                                    isHistory 
+                                    allResponses={allResponses} 
+                                />
+                            ))}
                             
                             {activeTab === 'settings' && (
                                 <div className="space-y-4">
@@ -1012,6 +1036,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

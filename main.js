@@ -740,14 +740,23 @@ function EchoScriptApp() {
         }, 300);
     };
 
-    const handleSaveNote = (updatedNote) => {
+   const handleSaveNote = (updatedNote) => {
+        const now = new Date().toISOString();
         if (isCreatingNew) {
-            setNotes(prev => [updatedNote, ...prev]);
+            // 新增：寫入建立日期與修改日期
+            const newNote = { ...updatedNote, createdDate: now, modifiedDate: now };
+            setNotes(prev => [newNote, ...prev]);
             setCurrentIndex(0);
             showNotification("新筆記已建立");
         } else {
-            setNotes(prev => prev.map(n => n.id === updatedNote.id ? updatedNote : n));
-            setFavorites(prev => prev.map(f => f.id === updatedNote.id ? { ...f, ...updatedNote } : f));
+            // 修改：只更新修改日期 (如果原本沒有建立日期，則補上)
+            const editedNote = { 
+                ...updatedNote, 
+                createdDate: updatedNote.createdDate || now,
+                modifiedDate: now 
+            };
+            setNotes(prev => prev.map(n => n.id === editedNote.id ? editedNote : n));
+            setFavorites(prev => prev.map(f => f.id === editedNote.id ? { ...f, ...editedNote } : f));
             showNotification("筆記已更新");
         }
         setShowEditModal(false);
@@ -877,6 +886,12 @@ function EchoScriptApp() {
                                     </div>
                                     {/* 2. 顯示次分類 Subcategory */}
                                     <h3 className="text-xl font-serif text-stone-600 italic">{currentNote.subcategory}</h3>
+                                    
+                                    {/* 日期顯示區 */}
+                                    <div className="flex gap-3 mt-3 text-[10px] text-stone-400 font-mono border-t border-stone-100 pt-2 w-full">
+                                        <span>📅 新增: {currentNote.createdDate ? new Date(currentNote.createdDate).toLocaleDateString() : '預設資料'}</span>
+                                        <span>📝 修改: {currentNote.modifiedDate ? new Date(currentNote.modifiedDate).toLocaleDateString() : (currentNote.createdDate ? new Date(currentNote.createdDate).toLocaleDateString() : '預設資料')}</span>
+                                    </div>
                                 </div>
                                 
                                 <div className="flex-1">
@@ -1036,6 +1051,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

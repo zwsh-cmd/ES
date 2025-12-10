@@ -421,7 +421,7 @@ const ResponseModal = ({ note, responses = [], onClose, onSave }) => {
                             <div className="space-y-3 mb-4">
                                 {responses.length > 0 ? responses.map(r => (
                                     <div key={r.id} onClick={() => handleEdit(r)} className="bg-white p-3 rounded-lg border border-gray-200 hover:border-stone-400 cursor-pointer active:scale-[0.99] transition-all group shadow-sm">
-                                        <p className="text-gray-700 whitespace-pre-wrap">{r.text}</p>
+                                        <div className="text-gray-700 whitespace-pre-wrap leading-relaxed break-words" style={{ whiteSpace: 'pre-wrap' }}>{r.text}</div>
                                         <div className="mt-2 flex justify-between items-center">
                                             <span className="text-[10px] text-gray-400">{new Date(r.timestamp).toLocaleString()}</span>
                                             <span className="text-[10px] text-stone-500 opacity-0 group-hover:opacity-100 transition-opacity">點擊修改</span>
@@ -927,7 +927,7 @@ function EchoScriptApp() {
                                                     </p>
                                                     
                                                     {/* 回應內容 */}
-                                                    <div className="text-sm text-stone-600 italic whitespace-pre-wrap leading-relaxed">
+                                                    <div className="text-sm text-stone-600 whitespace-pre-wrap leading-relaxed break-words" style={{ whiteSpace: 'pre-wrap' }}>
                                                         {resp.text}
                                                     </div>
                                                 </div>
@@ -1078,6 +1078,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

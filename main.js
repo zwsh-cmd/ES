@@ -368,26 +368,83 @@ const MarkdownEditorModal = ({ note, existingNotes = [], isNew = false, onClose,
 };
 
 // === 5. 回應編輯視窗 ===
-const ResponseModal = ({ note, initialResponse, onClose, onSave }) => {
-    const [response, setResponse] = useState(initialResponse);
+const ResponseModal = ({ note, responses = [], onClose, onSave }) => {
+    const [view, setView] = useState('list');
+    const [editingId, setEditingId] = useState(null);
+    const [editText, setEditText] = useState("");
+
+    const handleEdit = (responseItem) => {
+        setEditingId(responseItem.id);
+        setEditText(responseItem.text);
+        setView('edit');
+    };
+
+    const handleNew = () => {
+        setEditingId(null);
+        setEditText("");
+        setView('edit');
+    };
+
+    const handleSaveCurrent = () => {
+        if (!editText.trim()) return;
+        onSave(editText, editingId);
+        setView('list');
+    };
+
     return (
         <div className="fixed inset-0 z-50 bg-stone-900/60 backdrop-blur-sm flex justify-center items-end sm:items-center p-0 sm:p-4 animate-in fade-in duration-200" onClick={(e) => { if(e.target === e.currentTarget) onClose(); }}>
-            <div className="bg-white w-full max-w-lg h-[60%] sm:h-auto rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col">
-                <nav className="flex justify-between items-center p-4 border-b border-gray-100">
-                    <button onClick={onClose} className="text-gray-500 hover:text-gray-800 px-2">取消</button>
-                    <h3 className="font-bold text-gray-800">我的回應</h3>
-                    <button onClick={() => onSave(response)} className="bg-stone-800 text-white px-4 py-1.5 rounded-full text-sm font-bold">完成</button>
+            <div className="bg-white w-full max-w-lg h-[70%] sm:h-auto rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+                <nav className="flex justify-between items-center p-4 border-b border-gray-100 shrink-0">
+                    {view === 'list' ? (
+                        <>
+                            <button onClick={onClose} className="text-gray-500 hover:text-gray-800 px-2">關閉</button>
+                            <h3 className="font-bold text-gray-800">回應列表 ({responses.length})</h3>
+                            <div className="w-8"></div>
+                        </>
+                    ) : (
+                        <>
+                            <button onClick={() => setView('list')} className="text-gray-500 hover:text-gray-800 px-2">返回</button>
+                            <h3 className="font-bold text-gray-800">{editingId ? "修改回應" : "新增回應"}</h3>
+                            <button onClick={handleSaveCurrent} className="bg-stone-800 text-white px-4 py-1.5 rounded-full text-sm font-bold">儲存</button>
+                        </>
+                    )}
                 </nav>
-                <div className="p-6 flex flex-col flex-1">
-                    <div className="mb-4 p-3 bg-stone-50 rounded-lg border border-stone-100">
-                         <p className="text-sm text-stone-500 truncate">{note.content}</p>
-                    </div>
-                    <textarea 
-                        className="flex-1 w-full bg-white p-2 text-gray-700 text-base leading-relaxed outline-none resize-none placeholder-gray-300"
-                        placeholder="寫下你的靈感或應用..."
-                        value={response}
-                        onChange={(e) => setResponse(e.target.value)}
-                    />
+
+                <div className="p-4 flex flex-col flex-1 overflow-y-auto custom-scrollbar">
+                    {view === 'list' ? (
+                        <>
+                            <div className="mb-4 p-3 bg-stone-50 rounded-lg border border-stone-100">
+                                <p className="text-xs text-stone-500 mb-1">關於：{note.title}</p>
+                                <p className="text-sm text-gray-600 line-clamp-2">{note.content}</p>
+                            </div>
+                            
+                            <div className="space-y-3 mb-4">
+                                {responses.length > 0 ? responses.map(r => (
+                                    <div key={r.id} onClick={() => handleEdit(r)} className="bg-white p-3 rounded-lg border border-gray-200 hover:border-stone-400 cursor-pointer active:scale-[0.99] transition-all group shadow-sm">
+                                        <p className="text-gray-700 whitespace-pre-wrap">{r.text}</p>
+                                        <div className="mt-2 flex justify-between items-center">
+                                            <span className="text-[10px] text-gray-400">{new Date(r.timestamp).toLocaleString()}</span>
+                                            <span className="text-[10px] text-stone-500 opacity-0 group-hover:opacity-100 transition-opacity">點擊修改</span>
+                                        </div>
+                                    </div>
+                                )) : (
+                                    <div className="text-center text-gray-400 py-8">尚無回應，寫下第一筆靈感吧！</div>
+                                )}
+                            </div>
+
+                            <button onClick={handleNew} className="mt-auto w-full py-3 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded-xl font-bold flex items-center justify-center gap-2 transition-colors sticky bottom-0 shadow-sm border border-stone-200">
+                                <Plus className="w-5 h-5"/> 新增回應
+                            </button>
+                        </>
+                    ) : (
+                        <textarea 
+                            className="flex-1 w-full bg-stone-50 p-4 text-gray-800 text-lg leading-relaxed outline-none resize-none placeholder-gray-400 rounded-xl border border-stone-200 focus:border-stone-400 focus:bg-white transition-colors"
+                            placeholder="在這裡寫下你的想法..."
+                            value={editText}
+                            onChange={(e) => setEditText(e.target.value)}
+                            autoFocus
+                        />
+                    )}
                 </div>
             </div>
         </div>
@@ -569,6 +626,8 @@ function EchoScriptApp() {
     const [isAnimating, setIsAnimating] = useState(false);
     
     const [favorites, setFavorites] = useState([]);
+    const [allResponses, setAllResponses] = useState({}); 
+    
     const [history, setHistory] = useState([]);
     const [recentIndices, setRecentIndices] = useState([]);
 
@@ -588,19 +647,19 @@ function EchoScriptApp() {
             const savedNotes = JSON.parse(localStorage.getItem('echoScript_AllNotes'));
             let finalNotes;
             
-            // 修改：加入檢查邏輯。如果儲存的資料沒有 'category' 欄位（代表是舊版），則強制使用新的 INITIAL_NOTES
             if (savedNotes && savedNotes.length > 0 && savedNotes[0].category) {
                 finalNotes = savedNotes;
             } else {
                 console.log("偵測到舊版資料，執行結構升級...");
                 finalNotes = INITIAL_NOTES;
                 localStorage.setItem('echoScript_AllNotes', JSON.stringify(finalNotes));
-                // 建議：一併清除舊的歷史，避免格式衝突
                 localStorage.removeItem('echoScript_History');
                 setHistory([]); 
             }
             setNotes(finalNotes);
             setFavorites(JSON.parse(localStorage.getItem('echoScript_Favorites') || '[]'));
+            setAllResponses(JSON.parse(localStorage.getItem('echoScript_AllResponses') || '{}'));
+            
             setHistory(JSON.parse(localStorage.getItem('echoScript_History') || '[]'));
             setRecentIndices(JSON.parse(localStorage.getItem('echoScript_Recents') || '[]'));
 
@@ -629,6 +688,7 @@ function EchoScriptApp() {
 
     useEffect(() => { localStorage.setItem('echoScript_AllNotes', JSON.stringify(notes)); }, [notes]);
     useEffect(() => { localStorage.setItem('echoScript_Favorites', JSON.stringify(favorites)); }, [favorites]);
+    useEffect(() => { localStorage.setItem('echoScript_AllResponses', JSON.stringify(allResponses)); }, [allResponses]);
     useEffect(() => { localStorage.setItem('echoScript_History', JSON.stringify(history)); }, [history]);
     useEffect(() => { localStorage.setItem('echoScript_Recents', JSON.stringify(recentIndices)); }, [recentIndices]);
 
@@ -641,8 +701,8 @@ function EchoScriptApp() {
     };
 
     const currentNote = notes[currentIndex];
-    const currentFav = favorites.find(f => f.id === (currentNote ? currentNote.id : null));
-    const isFavorite = !!currentFav;
+    const isFavorite = favorites.some(f => f.id === (currentNote ? currentNote.id : null));
+    const currentNoteResponses = currentNote ? (allResponses[currentNote.id] || []) : [];
 
     const handleNextNote = () => {
         if (notes.length <= 1) return;
@@ -694,20 +754,29 @@ function EchoScriptApp() {
         }
     };
 
-    const handleResponseSave = (responseText) => {
-        const entry = { ...currentNote, journalEntry: responseText, timestamp: new Date().toISOString() };
-        setFavorites(prev => {
-            const existingIdx = prev.findIndex(f => f.id === currentNote.id);
-            if (existingIdx > -1) {
-                const newList = [...prev];
-                newList[existingIdx] = entry;
-                return newList;
+    const handleToggleFavorite = () => {
+        if (isFavorite) {
+            setFavorites(prev => prev.filter(f => f.id !== currentNote.id));
+            showNotification("已移除收藏");
+        } else {
+            setFavorites(prev => [currentNote, ...prev]);
+            showNotification("已加入收藏");
+        }
+    };
+
+    const handleSaveResponse = (text, responseId) => {
+        setAllResponses(prev => {
+            const noteResponses = prev[currentNote.id] || [];
+            let newNoteResponses;
+            if (responseId) {
+                newNoteResponses = noteResponses.map(r => r.id === responseId ? { ...r, text, timestamp: new Date().toISOString() } : r);
             } else {
-                return [entry, ...prev];
+                const newResponse = { id: Date.now(), text, timestamp: new Date().toISOString() };
+                newNoteResponses = [newResponse, ...noteResponses];
             }
+            return { ...prev, [currentNote.id]: newNoteResponses };
         });
-        setShowResponseModal(false);
-        showNotification("回應已儲存至收藏");
+        showNotification("回應已儲存");
     };
 
     const handleCopyMarkdown = () => {
@@ -815,17 +884,25 @@ function EchoScriptApp() {
                                 </div>
                             </div>
 
-                            <div className="bg-stone-50 px-6 py-4 border-t border-stone-100 flex justify-between items-center">
+                            <div className="bg-stone-50 px-4 py-4 border-t border-stone-100 flex justify-between items-center">
                                 <button onClick={() => { setIsCreatingNew(false); setShowEditModal(true); }} className="flex flex-col items-center gap-1 text-stone-400 hover:text-stone-800 transition-colors">
                                     <Edit className="w-5 h-5" />
                                     <span className="text-[10px] font-bold">修改筆記</span>
                                 </button>
                                 
-                                <button onClick={() => setShowResponseModal(true)} className="flex flex-col items-center gap-1 text-stone-400 hover:text-stone-800 transition-colors group">
-                                    <div className={`p-3 rounded-full ${isFavorite ? 'bg-stone-800 text-white shadow-lg' : 'bg-white border border-stone-200'} transition-all group-active:scale-95`}>
-                                        <PenLine className="w-5 h-5" />
-                                    </div>
-                                    <span className="text-[10px] font-bold">回應/收藏</span>
+                                <button onClick={() => setShowResponseModal(true)} className="flex flex-col items-center gap-1 text-stone-400 hover:text-stone-800 transition-colors relative">
+                                    <PenLine className="w-5 h-5" />
+                                    <span className="text-[10px] font-bold">回應</span>
+                                    {currentNoteResponses.length > 0 && (
+                                        <span className="absolute -top-1 -right-1 flex h-3 w-3 items-center justify-center rounded-full bg-red-500 text-[8px] text-white">
+                                            {currentNoteResponses.length}
+                                        </span>
+                                    )}
+                                </button>
+
+                                <button onClick={handleToggleFavorite} className={`flex flex-col items-center gap-1 transition-colors ${isFavorite ? 'text-red-500' : 'text-stone-400 hover:text-stone-800'}`}>
+                                    <Heart className="w-5 h-5" fill={isFavorite ? "currentColor" : "none"} />
+                                    <span className="text-[10px] font-bold">收藏</span>
                                 </button>
 
                                 <button onClick={handleCopyMarkdown} className="flex flex-col items-center gap-1 text-stone-400 hover:text-stone-800 transition-colors">
@@ -834,13 +911,6 @@ function EchoScriptApp() {
                                 </button>
                             </div>
                         </div>
-
-                        {isFavorite && currentFav?.journalEntry && (
-                            <div className="mt-6 ml-4 border-l-2 border-stone-300 pl-4 animate-in fade-in slide-in-from-bottom-2">
-                                <p className="text-xs font-bold text-stone-400 mb-1">MY NOTE</p>
-                                <p className="text-stone-600 italic">{currentFav.journalEntry}</p>
-                            </div>
-                        )}
                     </div>
                 ) : (
                     <div className="flex flex-col items-center justify-center py-20 text-stone-400">
@@ -899,7 +969,7 @@ function EchoScriptApp() {
             {showEditModal && (
                 <MarkdownEditorModal 
                     note={isCreatingNew ? null : currentNote} 
-                    existingNotes={notes}  // 新增這一行：傳遞所有筆記資料
+                    existingNotes={notes}
                     isNew={isCreatingNew}
                     onClose={() => setShowEditModal(false)} 
                     onSave={handleSaveNote} 
@@ -925,9 +995,9 @@ function EchoScriptApp() {
             {showResponseModal && currentNote && (
                 <ResponseModal 
                     note={currentNote} 
-                    initialResponse={isFavorite ? currentFav.journalEntry : ""}
+                    responses={currentNoteResponses} 
                     onClose={() => setShowResponseModal(false)}
-                    onSave={handleResponseSave}
+                    onSave={handleSaveResponse}
                 />
             )}
 
@@ -942,6 +1012,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

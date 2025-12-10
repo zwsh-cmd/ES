@@ -909,6 +909,34 @@ function EchoScriptApp() {
                                     </div>
                                 </div>
 
+                                {/* 操作按鈕區 (移至此處) */}
+                                <div className="mt-8 pt-6 border-t border-stone-100 flex justify-between items-center px-4">
+                                    <button onClick={() => { setIsCreatingNew(false); setShowEditModal(true); }} className="flex flex-col items-center gap-1 text-stone-400 hover:text-stone-800 transition-colors">
+                                        <Edit className="w-6 h-6" />
+                                        <span className="text-[9px] font-bold">修改筆記</span>
+                                    </button>
+                                    
+                                    <button onClick={() => setShowResponseModal(true)} className="flex flex-col items-center gap-1 text-stone-400 hover:text-stone-800 transition-colors relative">
+                                        <PenLine className="w-6 h-6" />
+                                        <span className="text-[9px] font-bold">回應</span>
+                                        {currentNoteResponses.length > 0 && (
+                                            <span className="absolute -top-1 -right-2 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] text-white border-2 border-white">
+                                                {currentNoteResponses.length}
+                                            </span>
+                                        )}
+                                    </button>
+
+                                    <button onClick={handleToggleFavorite} className={`flex flex-col items-center gap-1 transition-colors ${isFavorite ? 'text-red-500' : 'text-stone-400 hover:text-stone-800'}`}>
+                                        <Heart className="w-6 h-6" fill={isFavorite ? "currentColor" : "none"} />
+                                        <span className="text-[9px] font-bold">收藏</span>
+                                    </button>
+
+                                    <button onClick={handleCopyMarkdown} className="flex flex-col items-center gap-1 text-stone-400 hover:text-stone-800 transition-colors">
+                                        <Copy className="w-6 h-6" />
+                                        <span className="text-[9px] font-bold">複製 MD</span>
+                                    </button>
+                                </div>
+
                                 {/* 新增：首頁回應顯示區 (新 -> 舊) */}
                                 {currentNoteResponses.length > 0 && (
                                     <div className="mt-8 pt-6 border-t border-stone-100 animate-in fade-in slide-in-from-bottom-2">
@@ -937,32 +965,7 @@ function EchoScriptApp() {
                                 )}
                             </div>
 
-                            <div className="bg-stone-50 px-12 py-4 border-t border-stone-100 flex justify-between items-center">
-                                <button onClick={() => { setIsCreatingNew(false); setShowEditModal(true); }} className="flex flex-col items-center gap-1 text-stone-400 hover:text-stone-800 transition-colors">
-                                    <Edit className="w-6 h-6" />
-                                    <span className="text-[9px] font-bold">修改筆記</span>
-                                </button>
-                                
-                                <button onClick={() => setShowResponseModal(true)} className="flex flex-col items-center gap-1 text-stone-400 hover:text-stone-800 transition-colors relative">
-                                    <PenLine className="w-6 h-6" />
-                                    <span className="text-[9px] font-bold">回應</span>
-                                    {currentNoteResponses.length > 0 && (
-                                        <span className="absolute -top-1 -right-2 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] text-white border-2 border-stone-50">
-                                            {currentNoteResponses.length}
-                                        </span>
-                                    )}
-                                </button>
-
-                                <button onClick={handleToggleFavorite} className={`flex flex-col items-center gap-1 transition-colors ${isFavorite ? 'text-red-500' : 'text-stone-400 hover:text-stone-800'}`}>
-                                    <Heart className="w-6 h-6" fill={isFavorite ? "currentColor" : "none"} />
-                                    <span className="text-[9px] font-bold">收藏</span>
-                                </button>
-
-                                <button onClick={handleCopyMarkdown} className="flex flex-col items-center gap-1 text-stone-400 hover:text-stone-800 transition-colors">
-                                    <Copy className="w-6 h-6" />
-                                    <span className="text-[9px] font-bold">複製 MD</span>
-                                </button>
-                            </div>
+                            
                         </div>
                     </div>
                 ) : (
@@ -1078,6 +1081,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

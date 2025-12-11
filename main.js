@@ -910,13 +910,13 @@ function EchoScriptApp() {
                                     <PenLine className="w-6 h-6" />
                                     <span className="text-[9px] font-bold">回應</span>
                                     {currentNoteResponses.length > 0 && (
-                                        <span className="absolute -top-1 -right-2 flex h-4 w-4 items-center justify-center rounded-full bg-rose-400 text-[9px] text-white border-2 border-stone-50">
+                                        <span className="absolute -top-1 -right-2 flex h-4 w-4 items-center justify-center rounded-full bg-stone-800 text-[9px] text-white border-2 border-stone-50">
                                             {currentNoteResponses.length}
                                         </span>
                                     )}
                                 </button>
 
-                                <button onClick={handleToggleFavorite} className={`flex flex-col items-center gap-1 transition-colors ${isFavorite ? 'text-rose-400' : 'text-stone-400 hover:text-stone-800'}`}>
+                                <button onClick={handleToggleFavorite} className={`flex flex-col items-center gap-1 transition-colors ${isFavorite ? 'text-stone-800' : 'text-stone-400 hover:text-stone-800'}`}>
                                     <Heart className="w-6 h-6" fill={isFavorite ? "currentColor" : "none"} />
                                     <span className="text-[9px] font-bold">收藏</span>
                                 </button>
@@ -1071,6 +1071,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

@@ -416,10 +416,8 @@ const ResponseModal = ({ note, responses = [], onClose, onSave, onDelete }) => {
                             <div className="space-y-3 mb-4">
                                 {responses.length > 0 ? responses.map(r => (
                                     <div key={r.id} className="relative group">
-                                        {/* 1. 移除 pr-8，讓底部資訊列可以對齊最右邊 */}
-                                        <div onClick={() => handleEdit(r)} className="bg-white p-3 rounded-lg border border-gray-200 hover:border-stone-400 cursor-pointer active:scale-[0.99] transition-all shadow-sm">
-                                            {/* 2. 在文字層加入 pr-6，避免文字遮擋右上角的刪除鈕 */}
-                                            <div className="text-gray-700 whitespace-pre-wrap leading-relaxed break-words pr-6" style={{ whiteSpace: 'pre-wrap' }}>{r.text}</div>
+                                        <div onClick={() => handleEdit(r)} className="bg-white p-3 rounded-lg border border-gray-200 hover:border-stone-400 cursor-pointer active:scale-[0.99] transition-all shadow-sm pr-8">
+                                            <div className="text-gray-700 whitespace-pre-wrap leading-relaxed break-words" style={{ whiteSpace: 'pre-wrap' }}>{r.text}</div>
                                             <div className="mt-2 flex justify-between items-center">
                                                 <span className="text-[10px] text-gray-400">{new Date(r.timestamp).toLocaleString()}</span>
                                                 <span className="text-[10px] text-stone-500 opacity-0 group-hover:opacity-100 transition-opacity">點擊修改</span>
@@ -427,8 +425,7 @@ const ResponseModal = ({ note, responses = [], onClose, onSave, onDelete }) => {
                                         </div>
                                         <button 
                                             onClick={(e) => { e.stopPropagation(); onDelete(r.id); }} 
-                                            {/* 3. 改為 right-3，對齊卡片的 p-3 邊距 */}
-                                            className="absolute right-3 top-3 p-1 text-stone-300 hover:text-red-500 transition-colors z-10"
+                                            className="absolute right-2 top-2 p-1 text-stone-300 hover:text-red-500 transition-colors z-10"
                                             title="刪除回應"
                                         >
                                             <Trash2 className="w-4 h-4" />
@@ -1091,8 +1088,6 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
-
-
 
 
 

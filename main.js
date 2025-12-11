@@ -292,39 +292,40 @@ const MarkdownEditorModal = ({ note, existingNotes = [], isNew = false, onClose,
                     <button onClick={handleSave} className="bg-stone-800 text-white px-4 py-1.5 rounded-full text-sm font-bold">儲存</button>
                 </nav>
                 
-                <div className="p-4 flex flex-col flex-1 overflow-hidden gap-4">
-                    <div className="grid grid-cols-2 gap-3">
-                        <Combobox 
-                            placeholder="大分類 (如:故事結構)"
-                            value={formData.category}
-                            onChange={(val) => setFormData(prev => ({...prev, category: val}))}
-                            options={existingCategories}
-                        />
-                        <Combobox 
-                            placeholder="次分類 (如:三幕劇)"
-                            value={formData.subcategory}
-                            onChange={(val) => setFormData(prev => ({...prev, subcategory: val}))}
-                            options={existingSubcategories}
+                {/* 主內容區：鎖定捲動 (Overflow Hidden) */}
+                <div className="flex flex-col flex-1 overflow-hidden">
+                    
+                    {/* 上方區塊：分類與標題 (固定不捲動) */}
+                    <div className="p-4 pb-2 shrink-0 flex flex-col gap-3">
+                        <div className="grid grid-cols-2 gap-3">
+                            <Combobox 
+                                placeholder="大分類 (如:故事結構)"
+                                value={formData.category}
+                                onChange={(val) => setFormData(prev => ({...prev, category: val}))}
+                                options={existingCategories}
+                            />
+                            <Combobox 
+                                placeholder="次分類 (如:三幕劇)"
+                                value={formData.subcategory}
+                                onChange={(val) => setFormData(prev => ({...prev, subcategory: val}))}
+                                options={existingSubcategories}
+                            />
+                        </div>
+
+                        <input 
+                            placeholder="主旨語 (必填，如：先讓英雄救貓咪)"
+                            className="bg-stone-50 border border-stone-200 rounded-lg p-3 font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-stone-400"
+                            value={formData.title}
+                            onChange={(e) => setFormData({...formData, title: e.target.value})}
                         />
                     </div>
 
-                    <input 
-                        placeholder="主旨語 (必填，如：先讓英雄救貓咪)"
-                        className="bg-stone-50 border border-stone-200 rounded-lg p-3 font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-stone-400"
-                        value={formData.title}
-                        onChange={(e) => setFormData({...formData, title: e.target.value})}
-                    />
-
-                    {/* 工具列與頁籤 (Sticky Header) */}
-                    <div className="sticky top-0 bg-white z-10 flex justify-between items-center border-b border-stone-100 pb-2 pt-2">
+                    {/* 中間區塊：工具列 (固定不捲動) */}
+                    <div className="px-4 py-2 shrink-0 border-b border-stone-100 flex justify-between items-center bg-white">
                         <div className="flex gap-1 overflow-x-auto no-scrollbar">
-                            {/* 新增：內文按鈕 (清除格式) */}
                             <button onClick={() => insertMarkdown('normal')} className="p-2 hover:bg-stone-100 rounded text-stone-600 flex items-center gap-1 text-xs font-bold min-w-fit" title="內文"><Type className="w-4 h-4"/> 內文</button>
-                            {/* 更新：使用專屬 H1 圖示 */}
                             <button onClick={() => insertMarkdown('h1')} className="p-2 hover:bg-stone-100 rounded text-stone-600 flex items-center gap-1 text-xs font-bold min-w-fit" title="大標"><Heading1 className="w-5 h-5"/> 大標</button>
-                            {/* 更新：使用專屬 H2 圖示 */}
                             <button onClick={() => insertMarkdown('h2')} className="p-2 hover:bg-stone-100 rounded text-stone-600 flex items-center gap-1 text-xs font-bold min-w-fit" title="小標"><Heading2 className="w-5 h-5"/> 小標</button>
-                            
                             <button onClick={() => insertMarkdown('bold')} className="p-2 hover:bg-stone-100 rounded text-stone-600 flex items-center gap-1 text-xs font-bold min-w-fit" title="粗體"><Bold className="w-4 h-4"/> 粗體</button>
                             <button onClick={() => insertMarkdown('quote')} className="p-2 hover:bg-stone-100 rounded text-stone-600 flex items-center gap-1 text-xs font-bold min-w-fit" title="引用"><Quote className="w-4 h-4"/> 引用</button>
                         </div>
@@ -334,18 +335,20 @@ const MarkdownEditorModal = ({ note, existingNotes = [], isNew = false, onClose,
                         </div>
                     </div>
 
-                    {/* 根據標籤顯示 編輯器 或 預覽畫面 */}
-                    {activeTab === 'write' ? (
-                        <HighlightingEditor 
-                            value={formData.content} 
-                            onChange={(val) => setFormData({...formData, content: val})} 
-                            textareaRef={contentRef}
-                        />
-                    ) : (
-                        <div className="flex-1 w-full bg-stone-50 p-4 rounded-lg border border-stone-200 overflow-y-auto min-h-[200px]">
-                            <MarkdownRenderer content={formData.content || "（尚未輸入內容）"} />
-                        </div>
-                    )}
+                    {/* 下方區塊：編輯器 (唯一可捲動區域) */}
+                    <div className="flex-1 overflow-hidden px-4 pb-4 flex flex-col">
+                        {activeTab === 'write' ? (
+                            <HighlightingEditor 
+                                value={formData.content} 
+                                onChange={(val) => setFormData({...formData, content: val})} 
+                                textareaRef={contentRef}
+                            />
+                        ) : (
+                            <div className="flex-1 w-full bg-stone-50 p-4 rounded-lg border border-stone-200 overflow-y-auto">
+                                <MarkdownRenderer content={formData.content || "（尚未輸入內容）"} />
+                            </div>
+                        )}
+                    </div>
                 </div>
 
                 {/* 底部刪除按鈕區 (僅在修改模式顯示) */}
@@ -1088,6 +1091,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

@@ -213,7 +213,8 @@ const HighlightingEditor = ({ value, onChange, textareaRef }) => {
 };
 
 // === 4. Markdown 編輯器組件 (整合高亮編輯器) ===
-const MarkdownEditorModal = ({ note, existingNotes = [], isNew = false, onClose, onSave }) => {
+// 修改：加入 onDelete 參數
+const MarkdownEditorModal = ({ note, existingNotes = [], isNew = false, onClose, onSave, onDelete }) => {
     const [formData, setFormData] = useState({
         category: note?.category || "",
         subcategory: note?.subcategory || "",
@@ -243,46 +244,30 @@ const MarkdownEditorModal = ({ note, existingNotes = [], isNew = false, onClose,
         if (!textarea) return;
 
         const text = formData.content;
-        const start = textarea.selectionStart; // 游標起點
-        const end = textarea.selectionEnd;     // 游標終點
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
 
         let newText = "";
         let newCursorPos = 0;
 
-        // 邏輯分流：粗體針對「選取範圍」，其他針對「整行」
         if (syntax === "bold") {
             const selectedText = text.substring(start, end);
-            // 粗體維持原樣：在選取文字前後加星星
             newText = text.substring(0, start) + "**" + selectedText + "**" + text.substring(end);
-            newCursorPos = end + 4; // 游標停在粗體後
+            newCursorPos = end + 4; 
         } else {
-            // H1, H2, 引用：針對「游標所在的整行」操作
-            
-            // 1. 找出該行的「開頭」 (往回找換行符號)
-            // 如果 lastIndexOf 找不到會回傳 -1，所以 +1 剛好是 0 (文章開頭)
             const lineStart = text.lastIndexOf('\n', start - 1) + 1;
-            
-            // 2. 找出該行的「結尾」 (往後找換行符號)
             let lineEnd = text.indexOf('\n', start);
-            if (lineEnd === -1) lineEnd = text.length; // 如果找不到，代表是最後一行
+            if (lineEnd === -1) lineEnd = text.length; 
 
-            // 3. 取得該行目前的內容
             const lineContent = text.substring(lineStart, lineEnd);
-
-            // 4. 清理該行原本可能有的 Markdown 符號 (避免變成 # # 標題)
-            // Regex 意思：移除開頭的 (#號加空白) 或 (>號加空白)
             const cleanContent = lineContent.replace(/^(\#+\s|>\s)/, '');
 
-            // 5. 決定要加上什麼前綴
             let prefix = "";
             if (syntax === "h1") prefix = "# ";
             if (syntax === "h2") prefix = "## ";
             if (syntax === "quote") prefix = "> ";
 
-            // 6. 組合新字串： (文章前半段) + (新前綴 + 乾淨的行內容) + (文章後半段)
             newText = text.substring(0, lineStart) + prefix + cleanContent + text.substring(lineEnd);
-
-            // 7. 設定游標停在該行修改後的末端
             newCursorPos = lineStart + prefix.length + cleanContent.length;
         }
 
@@ -302,7 +287,15 @@ const MarkdownEditorModal = ({ note, existingNotes = [], isNew = false, onClose,
         <div className="fixed inset-0 z-50 bg-stone-900/60 backdrop-blur-sm flex justify-center items-end sm:items-center p-0 sm:p-4 animate-in fade-in duration-200" onClick={(e) => { if(e.target === e.currentTarget) onClose(); }}>
             <div className="bg-white w-full max-w-lg h-[90%] sm:h-auto sm:max-h-[90vh] rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col">
                 <nav className="flex justify-between items-center p-4 border-b border-gray-100">
-                    <button onClick={onClose} className="text-gray-500 hover:text-gray-800 px-2">取消</button>
+                    <div className="flex items-center">
+                        <button onClick={onClose} className="text-gray-500 hover:text-gray-800 px-2">取消</button>
+                        {/* 只有在修改模式才顯示刪除按鈕 */}
+                        {!isNew && (
+                            <button onClick={onDelete} className="text-red-400 hover:text-red-600 px-2 ml-2" title="刪除筆記">
+                                <Trash2 className="w-5 h-5" />
+                            </button>
+                        )}
+                    </div>
                     <h3 className="font-bold text-gray-800">{isNew ? "新增筆記" : "修改筆記"}</h3>
                     <button onClick={handleSave} className="bg-stone-800 text-white px-4 py-1.5 rounded-full text-sm font-bold">儲存</button>
                 </nav>
@@ -368,7 +361,8 @@ const MarkdownEditorModal = ({ note, existingNotes = [], isNew = false, onClose,
 };
 
 // === 5. 回應編輯視窗 ===
-const ResponseModal = ({ note, responses = [], onClose, onSave }) => {
+// 修改：加入 onDelete 參數
+const ResponseModal = ({ note, responses = [], onClose, onSave, onDelete }) => {
     const [view, setView] = useState('list');
     const [editingId, setEditingId] = useState(null);
     const [editText, setEditText] = useState("");
@@ -420,12 +414,21 @@ const ResponseModal = ({ note, responses = [], onClose, onSave }) => {
                             
                             <div className="space-y-3 mb-4">
                                 {responses.length > 0 ? responses.map(r => (
-                                    <div key={r.id} onClick={() => handleEdit(r)} className="bg-white p-3 rounded-lg border border-gray-200 hover:border-stone-400 cursor-pointer active:scale-[0.99] transition-all group shadow-sm">
-                                        <div className="text-gray-700 whitespace-pre-wrap leading-relaxed break-words" style={{ whiteSpace: 'pre-wrap' }}>{r.text}</div>
-                                        <div className="mt-2 flex justify-between items-center">
-                                            <span className="text-[10px] text-gray-400">{new Date(r.timestamp).toLocaleString()}</span>
-                                            <span className="text-[10px] text-stone-500 opacity-0 group-hover:opacity-100 transition-opacity">點擊修改</span>
+                                    <div key={r.id} className="relative group">
+                                        <div onClick={() => handleEdit(r)} className="bg-white p-3 rounded-lg border border-gray-200 hover:border-stone-400 cursor-pointer active:scale-[0.99] transition-all shadow-sm pr-8">
+                                            <div className="text-gray-700 whitespace-pre-wrap leading-relaxed break-words" style={{ whiteSpace: 'pre-wrap' }}>{r.text}</div>
+                                            <div className="mt-2 flex justify-between items-center">
+                                                <span className="text-[10px] text-gray-400">{new Date(r.timestamp).toLocaleString()}</span>
+                                                <span className="text-[10px] text-stone-500 opacity-0 group-hover:opacity-100 transition-opacity">點擊修改</span>
+                                            </div>
                                         </div>
+                                        <button 
+                                            onClick={(e) => { e.stopPropagation(); onDelete(r.id); }} 
+                                            className="absolute right-2 top-2 p-1 text-stone-300 hover:text-red-500 transition-colors z-10"
+                                            title="刪除回應"
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                        </button>
                                     </div>
                                 )) : (
                                     <div className="text-center text-gray-400 py-8">尚無回應，寫下第一筆靈感吧！</div>
@@ -797,6 +800,17 @@ function EchoScriptApp() {
         showNotification("回應已儲存");
     };
 
+    const handleDeleteResponse = (responseId) => {
+        if(confirm("確定要刪除這則回應嗎？")) {
+            setAllResponses(prev => {
+                const noteResponses = prev[currentNote.id] || [];
+                const newNoteResponses = noteResponses.filter(r => r.id !== responseId);
+                return { ...prev, [currentNote.id]: newNoteResponses };
+            });
+            showNotification("回應已刪除");
+        }
+    };
+
     const handleCopyMarkdown = () => {
         if (!currentNote) return;
         const md = `# ${currentNote.category} / ${currentNote.subcategory}\n## ${currentNote.title}\n\n${currentNote.content}\n\n> 來自 EchoScript 編劇靈感庫`;
@@ -1032,6 +1046,7 @@ function EchoScriptApp() {
                     isNew={isCreatingNew}
                     onClose={() => setShowEditModal(false)} 
                     onSave={handleSaveNote} 
+                    onDelete={() => handleDeleteNote(currentNote?.id)}
                 />
             )}
 
@@ -1057,6 +1072,7 @@ function EchoScriptApp() {
                     responses={currentNoteResponses} 
                     onClose={() => setShowResponseModal(false)}
                     onSave={handleSaveResponse}
+                    onDelete={handleDeleteResponse}
                 />
             )}
 
@@ -1071,6 +1087,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

@@ -287,15 +287,7 @@ const MarkdownEditorModal = ({ note, existingNotes = [], isNew = false, onClose,
         <div className="fixed inset-0 z-50 bg-stone-900/60 backdrop-blur-sm flex justify-center items-end sm:items-center p-0 sm:p-4 animate-in fade-in duration-200" onClick={(e) => { if(e.target === e.currentTarget) onClose(); }}>
             <div className="bg-white w-full max-w-lg h-[90%] sm:h-auto sm:max-h-[90vh] rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col">
                 <nav className="flex justify-between items-center p-4 border-b border-gray-100">
-                    <div className="flex items-center">
-                        <button onClick={onClose} className="text-gray-500 hover:text-gray-800 px-2">取消</button>
-                        {/* 只有在修改模式才顯示刪除按鈕 */}
-                        {!isNew && (
-                            <button onClick={onDelete} className="text-red-400 hover:text-red-600 px-2 ml-2" title="刪除筆記">
-                                <Trash2 className="w-5 h-5" />
-                            </button>
-                        )}
-                    </div>
+                    <button onClick={onClose} className="text-gray-500 hover:text-gray-800 px-2">取消</button>
                     <h3 className="font-bold text-gray-800">{isNew ? "新增筆記" : "修改筆記"}</h3>
                     <button onClick={handleSave} className="bg-stone-800 text-white px-4 py-1.5 rounded-full text-sm font-bold">儲存</button>
                 </nav>
@@ -355,6 +347,15 @@ const MarkdownEditorModal = ({ note, existingNotes = [], isNew = false, onClose,
                         </div>
                     )}
                 </div>
+
+                {/* 底部刪除按鈕區 (僅在修改模式顯示) */}
+                {!isNew && (
+                    <div className="p-4 border-t border-gray-100 flex justify-end bg-gray-50 sm:rounded-b-2xl">
+                        <button onClick={onDelete} className="text-stone-400 hover:text-stone-600 flex items-center gap-2 text-xs font-bold transition-colors">
+                            <Trash2 className="w-4 h-4" /> 刪除筆記
+                        </button>
+                    </div>
+                )}
             </div>
         </div>
     );
@@ -1087,6 +1088,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

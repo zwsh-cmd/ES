@@ -292,7 +292,7 @@ const MarkdownEditorModal = ({ note, existingNotes = [], isNew = false, onClose,
                     <button onClick={handleSave} className="bg-stone-800 text-white px-4 py-1.5 rounded-full text-sm font-bold">儲存</button>
                 </nav>
                 
-                <div className="p-4 flex-col flex flex-1 overflow-y-auto custom-scrollbar gap-4">
+                <div className="p-4 flex flex-col flex-1 overflow-hidden gap-4">
                     <div className="grid grid-cols-2 gap-3">
                         <Combobox 
                             placeholder="大分類 (如:故事結構)"
@@ -1088,6 +1088,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

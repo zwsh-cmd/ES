@@ -188,7 +188,7 @@ const HighlightingEditor = ({ value, onChange, textareaRef }) => {
     };
 
     return (
-        <div className="relative flex-1 w-full border border-stone-200 rounded-lg overflow-hidden bg-white min-h-[200px]">
+        <div className="relative flex-1 w-full border border-stone-200 rounded-lg overflow-hidden bg-white h-full">
             {/* 底層：負責顯示樣式 (Backdrop) */}
             <div 
                 className="absolute inset-0 p-3 pointer-events-none whitespace-pre-wrap break-words overflow-hidden"
@@ -1091,6 +1091,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

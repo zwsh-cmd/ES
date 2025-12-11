@@ -901,12 +901,12 @@ function EchoScriptApp() {
 
                             {/* 操作按鈕區 (位於卡片內部底部) */}
                             <div className="bg-stone-50 px-12 py-4 border-t border-stone-100 flex justify-between items-center">
-                                <button onClick={() => { setIsCreatingNew(false); setShowEditModal(true); }} className="flex flex-col items-center gap-1 text-stone-400 hover:text-stone-800 transition-colors">
+                                <button onClick={() => { setIsCreatingNew(false); setShowEditModal(true); }} className="flex flex-col items-center gap-1 text-stone-400 hover:scale-110 transition-transform duration-200">
                                     <Edit className="w-6 h-6" />
                                     <span className="text-[9px] font-bold">修改筆記</span>
                                 </button>
                                 
-                                <button onClick={() => setShowResponseModal(true)} className="flex flex-col items-center gap-1 text-stone-400 hover:text-stone-800 transition-colors relative">
+                                <button onClick={() => setShowResponseModal(true)} className="flex flex-col items-center gap-1 text-stone-400 hover:scale-110 transition-transform duration-200 relative">
                                     <PenLine className="w-6 h-6" />
                                     <span className="text-[9px] font-bold">回應</span>
                                     {currentNoteResponses.length > 0 && (
@@ -916,12 +916,12 @@ function EchoScriptApp() {
                                     )}
                                 </button>
 
-                                <button onClick={handleToggleFavorite} className="flex flex-col items-center gap-1 text-stone-400 hover:text-stone-800 transition-colors">
+                                <button onClick={handleToggleFavorite} className="flex flex-col items-center gap-1 text-stone-400 hover:scale-110 transition-transform duration-200">
                                     <Heart className="w-6 h-6" fill={isFavorite ? "currentColor" : "none"} />
                                     <span className="text-[9px] font-bold">收藏</span>
                                 </button>
 
-                                <button onClick={handleCopyMarkdown} className="flex flex-col items-center gap-1 text-stone-400 hover:text-stone-800 transition-colors">
+                                <button onClick={handleCopyMarkdown} className="flex flex-col items-center gap-1 text-stone-400 hover:scale-110 transition-transform duration-200">
                                     <Copy className="w-6 h-6" />
                                     <span className="text-[9px] font-bold">複製 MD</span>
                                 </button>
@@ -1071,6 +1071,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

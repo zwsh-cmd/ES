@@ -309,7 +309,7 @@ const MarkdownEditorModal = ({ note, existingNotes = [], isNew = false, onClose,
                     </div>
 
                     <input 
-                        placeholder="主旨語 (必填，如：第一幕：鋪陳)"
+                        placeholder="主旨語 (必填，如：先讓英雄救貓咪)"
                         className="bg-stone-50 border border-stone-200 rounded-lg p-3 font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-stone-400"
                         value={formData.title}
                         onChange={(e) => setFormData({...formData, title: e.target.value})}
@@ -1088,6 +1088,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

@@ -910,7 +910,7 @@ function EchoScriptApp() {
                                     <PenLine className="w-6 h-6" />
                                     <span className="text-[9px] font-bold">回應</span>
                                     {currentNoteResponses.length > 0 && (
-                                        <span className="absolute -top-2 -right-3 flex h-5 w-5 items-center justify-center rounded-full bg-stone-400 text-xs font-bold text-white border-2 border-stone-50">
+                                        <span className="absolute top-0 -right-3 flex h-5 w-5 items-center justify-center rounded-full bg-stone-400 text-xs font-bold text-white border-2 border-stone-50">
                                             {currentNoteResponses.length}
                                         </span>
                                     )}
@@ -1071,6 +1071,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

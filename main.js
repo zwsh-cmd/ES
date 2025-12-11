@@ -315,8 +315,8 @@ const MarkdownEditorModal = ({ note, existingNotes = [], isNew = false, onClose,
                         onChange={(e) => setFormData({...formData, title: e.target.value})}
                     />
 
-                    {/* 工具列與頁籤 */}
-                    <div className="flex justify-between items-center border-b border-stone-100 pb-2">
+                    {/* 工具列與頁籤 (Sticky Header) */}
+                    <div className="sticky top-0 bg-white z-10 flex justify-between items-center border-b border-stone-100 pb-2 pt-2">
                         <div className="flex gap-1 overflow-x-auto no-scrollbar">
                             {/* 新增：內文按鈕 (清除格式) */}
                             <button onClick={() => insertMarkdown('normal')} className="p-2 hover:bg-stone-100 rounded text-stone-600 flex items-center gap-1 text-xs font-bold min-w-fit" title="內文"><Type className="w-4 h-4"/> 內文</button>
@@ -1088,6 +1088,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

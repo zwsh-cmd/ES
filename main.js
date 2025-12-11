@@ -906,14 +906,17 @@ function EchoScriptApp() {
                                     <span className="text-[9px] font-bold">修改筆記</span>
                                 </button>
                                 
-                                <button onClick={() => setShowResponseModal(true)} className="flex flex-col items-center gap-1 text-stone-400 hover:scale-110 transition-transform duration-200 relative">
-                                    <PenLine className="w-6 h-6" />
+                                <button onClick={() => setShowResponseModal(true)} className="flex flex-col items-center gap-1 text-stone-400 hover:scale-110 transition-transform duration-200">
+                                    {/* 新增這層 relative div，讓圓點跟隨圖示定位 */}
+                                    <div className="relative">
+                                        <PenLine className="w-6 h-6" />
+                                        {currentNoteResponses.length > 0 && (
+                                            <span className="absolute -bottom-1 -right-2 flex h-5 w-5 items-center justify-center rounded-full bg-stone-400 text-xs font-bold text-white border-2 border-stone-50">
+                                                {currentNoteResponses.length}
+                                            </span>
+                                        )}
+                                    </div>
                                     <span className="text-[9px] font-bold">回應</span>
-                                    {currentNoteResponses.length > 0 && (
-                                        <span className="absolute -top-2 -right-3 flex h-5 w-5 items-center justify-center rounded-full bg-stone-400 text-xs font-bold text-white border-2 border-stone-50">
-                                            {currentNoteResponses.length}
-                                        </span>
-                                    )}
                                 </button>
 
                                 <button onClick={handleToggleFavorite} className="flex flex-col items-center gap-1 text-stone-400 hover:scale-110 transition-transform duration-200">
@@ -1071,6 +1074,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

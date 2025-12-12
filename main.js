@@ -697,6 +697,34 @@ function EchoScriptApp() {
     const [touchStart, setTouchStart] = useState(null);
     const [touchCurrent, setTouchCurrent] = useState(null);
 
+    // 新增：處理手機「返回鍵」邏輯 (防止誤觸跳出 APP)
+    useEffect(() => {
+        // 檢查是否有任何視窗開啟
+        const isAnyModalOpen = showMenuModal || showAllNotesModal || showEditModal || showResponseModal;
+
+        const handlePopState = (event) => {
+            // 當按下返回鍵 (觸發 popstate) 時，如果有視窗開啟，則關閉視窗
+            if (isAnyModalOpen) {
+                setShowMenuModal(false);
+                setShowAllNotesModal(false);
+                setShowEditModal(false);
+                setShowResponseModal(false);
+                // 這裡會直接關閉視窗，確保使用者留在 APP 內
+            }
+        };
+
+        if (isAnyModalOpen) {
+            // 當視窗開啟時，在瀏覽器歷史中「推入」一筆新紀錄
+            // 這樣按下返回鍵時，會消耗掉這筆紀錄，而不是跳出 APP
+            window.history.pushState({ modalOpen: true }, "", window.location.href);
+            window.addEventListener('popstate', handlePopState);
+        }
+
+        return () => {
+            window.removeEventListener('popstate', handlePopState);
+        };
+    }, [showMenuModal, showAllNotesModal, showEditModal, showResponseModal]);
+
     useEffect(() => {
         try {
             const savedNotes = JSON.parse(localStorage.getItem('echoScript_AllNotes'));
@@ -1127,6 +1155,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

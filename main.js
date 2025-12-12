@@ -766,50 +766,46 @@ function EchoScriptApp() {
 
     // 2. 返回鍵監聽 (PopState)
     useEffect(() => {
-                const handlePopState = (event) => {
-        // === 升級版：編輯中無條件補推緩衝，防止連按退出 APP ===
+                    const handlePopState = (event) => {
+        // 2025 PWA 標準：結合 popstate + Close Watcher 緩衝
         if (hasUnsavedChangesRef.current) {
-            // 關鍵升級：每次都補推「原 modal + 額外緩衝」，確保堆疊有 2 層以上
-            window.history.pushState({ page: 'modal_active', guarded: true }, '', '');
-            window.history.pushState({ page: 'modal_buffer', guarded: true }, '', '');  // 額外緩衝層
+            // 多層 history 緩衝（至少 3 層）
+            window.history.pushState({ page: 'modal_active' }, '', '');
+            window.history.pushState({ page: 'modal_buffer1' }, '', '');
+            window.history.pushState({ page: 'modal_buffer2' }, '', '');
 
             const leave = confirm("編輯內容還未存檔，是否離開？");
-
             if (leave) {
                 setHasUnsavedChanges(false);
                 hasUnsavedChangesRef.current = false;
-                // 退 3 步：緩衝 + 補推 + 原 modal
-                window.history.go(-3);
+                window.history.go(-4);  // 退掉所有緩衝 + 原 modal
             }
-            // 按取消：堆疊已多 2 層，下次還會觸發（絕不退出）
             return;
         }
 
-        // ResponseModal 內部導航（編輯 → 列表）
+        // ResponseModal 內部：編輯 → 列表
         if (showResponseModal && responseViewModeRef.current === 'edit') {
             setResponseViewMode('list');
-            // 補推緩衝，防止退出
-            window.history.pushState({ page: 'response_list', time: Date.now() }, '', '');
+            window.history.pushState({ page: 'response_list' }, '', '');
             return;
         }
 
-        // 任何 Modal 開啟：關閉 Modal（回到主畫面），補推緩衝
+        // Modal 開啟：關閉 modal，補推緩衝
         if (showMenuModal || showAllNotesModal || showEditModal || showResponseModal) {
             setShowMenuModal(false);
             setShowAllNotesModal(false);
             setShowEditModal(false);
             setShowResponseModal(false);
             setResponseViewMode('list');
-            // 補推主頁緩衝，防止直接退出
-            window.history.pushState({ page: 'home_buffer', time: Date.now() }, '', '');
+            window.history.pushState({ page: 'home_buffer' }, '', '');
             return;
         }
 
-        // 只有首頁：問是否退出
+        // 首頁：問退出
         if (confirm("是否退出程式？")) {
-            window.history.back();  // 真正退出
+            window.history.back();
         } else {
-            window.history.pushState({ page: 'home' }, '', '');  // 補回首頁
+            window.history.pushState({ page: 'home' }, '', '');
         }
     };
 
@@ -817,6 +813,67 @@ function EchoScriptApp() {
         return () => window.removeEventListener('popstate', handlePopState);
     }, [showMenuModal, showAllNotesModal, showEditModal, showResponseModal]);
 
+        // 新增：2025 Close Watcher API - 攔截 Android hardware back（防止直接退出）
+    useEffect(() => {
+        if (!('beforeclose' in self)) return;  // 只在支援的瀏覽器執行（Chrome 2025+）
+
+        let closeWatcher = null;
+
+        const initCloseWatcher = () => {
+            if (closeWatcher) closeWatcher.stop();
+            closeWatcher = new CloseWatcher({
+                onbeforeclose: (reason) => {
+                    // 如果是 Android back button 或無互動退出
+                    if (reason === 'close-button' || reason === 'back-gesture') {
+                        if (hasUnsavedChangesRef.current) {
+                            // 編輯中：攔截並跳 confirm
+                            event.preventDefault();
+                            const leave = confirm("編輯內容還未存檔，是否離開？");
+                            if (leave) {
+                                setHasUnsavedChanges(false);
+                                hasUnsavedChangesRef.current = false;
+                                closeWatcher.close();  // 允許退出
+                            }
+                            // 按取消：阻止退出，繼續編輯
+                            return;
+                        }
+
+                        // 非編輯：檢查是否首頁
+                        const isAnyModalOpen = showMenuModal || showAllNotesModal || showEditModal || showResponseModal;
+                        if (isAnyModalOpen) {
+                            // 關閉 modal，不退出
+                            event.preventDefault();
+                            setShowMenuModal(false);
+                            setShowAllNotesModal(false);
+                            setShowEditModal(false);
+                            setShowResponseModal(false);
+                            setResponseViewMode('list');
+                            return;
+                        } else {
+                            // 首頁：問退出
+                            event.preventDefault();
+                            const exitApp = confirm("是否退出程式？");
+                            if (exitApp) {
+                                closeWatcher.close();
+                            }
+                        }
+                    }
+                }
+            });
+        };
+
+        // 監聽狀態變化，重啟 watcher
+        const unsubscribe = () => {
+            if (closeWatcher) closeWatcher.stop();
+        };
+
+        initCloseWatcher();
+        window.addEventListener('focus', initCloseWatcher);
+        window.addEventListener('blur', unsubscribe);
+
+        return unsubscribe;
+    }, [hasUnsavedChanges, showMenuModal, showAllNotesModal, showEditModal, showResponseModal]);
+    
     useEffect(() => {
         try {
             const savedNotes = JSON.parse(localStorage.getItem('echoScript_AllNotes'));
@@ -1251,6 +1308,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

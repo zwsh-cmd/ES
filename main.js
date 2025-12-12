@@ -738,17 +738,22 @@ function EchoScriptApp() {
 
     // === 核心修正：全域導航與返回鍵攔截 (強力修復版) ===
     
-    // 1. 初始化：確保歷史堆疊有兩層 (Root -> Home)
-    useEffect(() => {
-        // 延遲執行，確保在頁面完全載入後才寫入歷史紀錄
-        const initHistory = setTimeout(() => {
-            if (!window.history.state || window.history.state.page !== 'home') {
-                 window.history.replaceState({ page: 'root' }, '', '');
-                 window.history.pushState({ page: 'home' }, '', '');
-            }
-        }, 50);
-        return () => clearTimeout(initHistory);
-    }, []);
+    // 1. 初始化：確保歷史堆疊有三層 (Root -> Guard -> Home)
+//    在 Android PWA 下，只靠兩層常會被視為可直接退出。
+//    因此插入一個永久性的 guard 層，避免瀏覽器直接關閉 App。
+useEffect(() => {
+    const initHistory = setTimeout(() => {
+        if (!window.history.state || window.history.state.page !== 'home') {
+             // 根（不可直接退）
+             window.history.replaceState({ page: 'root' }, '', '');
+             // 第一層 guard（假的頁面，用來擋住退出）
+             window.history.pushState({ page: '__guard__' }, '', '');
+             // 真正的首頁（UI 所在）
+             window.history.pushState({ page: 'home' }, '', '');
+        }
+    }, 50);
+    return () => clearTimeout(initHistory);
+}, []);
 
     // 2. 開啟視窗時：推入帶有時間戳記的新紀錄
     useEffect(() => {
@@ -762,19 +767,18 @@ function EchoScriptApp() {
     // 3. 監聽返回鍵行為 (核心邏輯)
 useEffect(() => {
     const handlePopState = (event) => {
-        // A. 未存檔攔截 (最高優先級：死循環陷阱)
+        // A. 未存檔攔截 (最高優先級)
         if (hasUnsavedChangesRef.current) {
             const leave = confirm("編輯內容還未存檔，是否離開？");
             if (!leave) {
                 // 使用者選擇「留下來」 (取消退出)
-                // 重要改動：直接把使用者補回到 home 的 state（而非 modal_guard）
-                // 這樣能確保歷史堆疊回到安全頁面，避免某些瀏覽器把下一個 popstate 當作「關閉 app」。
+                // 重要：補回兩層（先 guard，再 home），確保下一次返回不會被 PWA 視為退出
+                window.history.pushState({ page: '__guard__' }, '', '');
                 window.history.pushState({ page: 'home' }, '', '');
-                // 保持 hasUnsavedChanges 狀態（未改變），並直接停止處理 popstate
+                // 保持 hasUnsavedChanges 狀態（不變），停止處理此次 popstate
                 return;
             } else {
                 // 使用者選擇「離開」 (確定退出)
-                // 解除鎖定，讓程式繼續往下跑 (進入 C 步驟關閉視窗)
                 setHasUnsavedChanges(false);
                 hasUnsavedChangesRef.current = false;
             }
@@ -783,7 +787,7 @@ useEffect(() => {
         // B. 回應視窗內的特殊導航 (從編輯模式 -> 列表模式)
         if (showResponseModal && responseViewModeRef.current === 'edit') {
             setResponseViewMode('list');
-            // 因為視窗還沒關，我們必須把歷史紀錄補回去，維持 Modal 開啟的狀態
+            // 視窗沒關掉，但我們需要維持 modal 的歷史標記
             window.history.pushState({ page: 'modal' }, '', '');
             return;
         }
@@ -791,8 +795,6 @@ useEffect(() => {
         // C. 關閉任何開啟的視窗 (回到上一頁)
         const isAnyModalOpen = showMenuModal || showAllNotesModal || showEditModal || showResponseModal;
         if (isAnyModalOpen) {
-            // 因為是按返回鍵觸發的，瀏覽器已經自動扣掉了歷史紀錄 (從 Modal -> Home)
-            // 我們只需要更新 UI 讓視窗消失即可，不用操作 history
             setShowMenuModal(false);
             setShowAllNotesModal(false);
             setShowEditModal(false);
@@ -801,15 +803,14 @@ useEffect(() => {
             return;
         }
 
-        // D. 首頁退出攔截
-        // 程式執行到這裡，代表沒有任何視窗開啟 (在首頁)，且使用者按了返回
+        // D. 首頁退出攔截（只有在首頁才會跑到這裡）
         const exit = confirm("是否退出程式？");
         if (!exit) {
-            // 使用者後悔退出 -> 補回首頁狀態，留在 App 內
+            // 使用者後悔退出 -> 補回 guard + home（與 A 同樣策略）
+            window.history.pushState({ page: '__guard__' }, '', '');
             window.history.pushState({ page: 'home' }, '', '');
         } else {
-            // 使用者確認退出 -> 再退一步
-            // 因為我們目前在 'root' 狀態，再退一步就會觸發真正的瀏覽器關閉/退出 App
+            // 使用者確認退出 -> 再退一步（回到 root 會觸發系統關閉）
             window.history.back();
         }
     };
@@ -817,6 +818,7 @@ useEffect(() => {
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
 }, [showMenuModal, showAllNotesModal, showEditModal, showResponseModal]);
+
 
 
     useEffect(() => {
@@ -1253,6 +1255,7 @@ useEffect(() => {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

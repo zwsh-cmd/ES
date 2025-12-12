@@ -736,18 +736,18 @@ function EchoScriptApp() {
     useEffect(() => { hasUnsavedChangesRef.current = hasUnsavedChanges; }, [hasUnsavedChanges]);
     useEffect(() => { responseViewModeRef.current = responseViewMode; }, [responseViewMode]);
 
-    // === 新增邏輯 A: 管理歷史紀錄堆疊 (Push State) ===
+    // === 核心修正：全域導航與返回鍵攔截 (History Controller) ===
+    
+    // 1. 初始化歷史紀錄：建立「根」與「首頁」兩層安全網
     useEffect(() => {
-        // 1. 當 App 剛載入時，推入一個「首頁」狀態 (Home Guard)
-        // 這是為了讓使用者在首頁按返回時，我們能攔截到，而不是直接關閉瀏覽器
-        window.history.replaceState({ page: 'root' }, '', ''); 
-        window.history.pushState({ page: 'home' }, '', '');
-
-        // 注意：這個 Effect 只在組件掛載時執行一次初始化，
-        // 後續的 Modal 狀態推入由下方的 Effect 處理
+        // 如果當前狀態不是 home，就重置歷史紀錄，防止按一次就退出
+        if (!window.history.state || window.history.state.page !== 'home') {
+             window.history.replaceState({ page: 'root' }, '', '');
+             window.history.pushState({ page: 'home' }, '', '');
+        }
     }, []);
 
-    // 2. 當任何視窗開啟時，推入一個「Modal」狀態
+    // 2. 當開啟任何 Modal 時，推入一層歷史紀錄
     useEffect(() => {
         const isAnyModalOpen = showMenuModal || showAllNotesModal || showEditModal || showResponseModal;
         if (isAnyModalOpen) {
@@ -755,59 +755,57 @@ function EchoScriptApp() {
         }
     }, [showMenuModal, showAllNotesModal, showEditModal, showResponseModal]);
 
-
-    // === 新增邏輯 B: 監聽返回鍵行為 (Pop State Listener) ===
+    // 3. 監聽返回鍵行為 (核心邏輯)
     useEffect(() => {
         const handlePopState = (event) => {
-            const isAnyModalOpen = showMenuModal || showAllNotesModal || showEditModal || showResponseModal;
-
-            // --- 狀況 1: 有未存檔的變更 (最優先攔截) ---
+            // A. 未存檔攔截 (最高優先級：死循環陷阱)
             if (hasUnsavedChangesRef.current) {
-                // 瀏覽器已執行「上一頁」，歷史紀錄 -1
-                if (!confirm("編輯內容還未存檔，是否離開？")) {
-                    // 使用者選「取消」 (留下來)
-                    // 關鍵修正：立刻把剛剛扣掉的歷史紀錄補回去，防止下次按直接退出
-                    // 使用 setTimeout 確保在瀏覽器事件迴圈後執行，增加穩定性
-                    setTimeout(() => {
-                        window.history.pushState({ page: 'modal_guard' }, '', ''); 
-                    }, 50);
-                    return;
+                const leave = confirm("編輯內容還未存檔，是否離開？");
+                if (!leave) {
+                    // 使用者選擇「留下來」 (取消退出)
+                    // 關鍵：立刻把剛剛被扣掉的歷史紀錄「補回去」，讓使用者回到圍牆內。
+                    // 這樣下次再按返回鍵時，又會觸發 popstate，再次跳出詢問，達成死循環保護。
+                    window.history.pushState({ page: 'modal_guard' }, '', '');
+                    return; 
                 } else {
-                    // 使用者選「確定」 (離開)
+                    // 使用者選擇「離開」 (確定退出)
+                    // 解除鎖定，讓程式繼續往下跑 (進入 C 步驟關閉視窗)
                     setHasUnsavedChanges(false);
                     hasUnsavedChangesRef.current = false;
-                    // 程式繼續往下執行，去關閉視窗
                 }
             }
 
-            // --- 狀況 2: 回應視窗內層導航 (編輯 -> 列表) ---
+            // B. 回應視窗內的特殊導航 (從編輯模式 -> 列表模式)
             if (showResponseModal && responseViewModeRef.current === 'edit') {
                 setResponseViewMode('list');
-                // 視窗還沒關，所以要把歷史紀錄補回去
+                // 因為視窗還沒關，我們必須把歷史紀錄補回去，維持 Modal 開啟的狀態
                 window.history.pushState({ page: 'modal' }, '', '');
                 return;
             }
 
-            // --- 狀況 3: 關閉開啟中的視窗 ---
+            // C. 關閉任何開啟的視窗 (回到上一頁)
+            const isAnyModalOpen = showMenuModal || showAllNotesModal || showEditModal || showResponseModal;
             if (isAnyModalOpen) {
+                // 因為是按返回鍵觸發的，瀏覽器已經自動扣掉了歷史紀錄 (從 Modal -> Home)
+                // 我們只需要更新 UI 讓視窗消失即可，不用操作 history
                 setShowMenuModal(false);
                 setShowAllNotesModal(false);
                 setShowEditModal(false);
                 setShowResponseModal(false);
                 setResponseViewMode('list');
-                // 這裡「不用」補歷史紀錄，因為這正是我們想要的：回到上一層 (首頁)
                 return;
             }
 
-            // --- 狀況 4: 首頁退出攔截 ---
-            // 如果執行到這裡，表示沒有視窗開啟，且使用者按了返回 (把 'home' 狀態彈出了)
-            // 這時候我們位於 'root' 狀態
-            if (confirm("是否退出程式？")) {
-                // 使用者確認退出 -> 再退一步 (回到瀏覽器上一頁/關閉APP)
-                window.history.back();
-            } else {
-                // 使用者反悔 -> 把 'home' 狀態補回去
+            // D. 首頁退出攔截
+            // 程式執行到這裡，代表沒有任何視窗開啟 (在首頁)，且使用者按了返回
+            const exit = confirm("是否退出程式？");
+            if (!exit) {
+                // 使用者後悔退出 -> 補回首頁狀態，留在 App 內
                 window.history.pushState({ page: 'home' }, '', '');
+            } else {
+                // 使用者確認退出 -> 再退一步
+                // 因為我們目前在 'root' 狀態，再退一步就會觸發真正的瀏覽器關閉/退出 App
+                window.history.back();
             }
         };
 
@@ -1249,6 +1247,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

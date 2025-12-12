@@ -283,11 +283,33 @@ const MarkdownEditorModal = ({ note, existingNotes = [], isNew = false, onClose,
         onSave({ ...note, ...formData, id: note?.id || Date.now() });
     };
 
-   return (
-        <div className="fixed inset-0 z-50 bg-stone-900/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={(e) => { if(e.target === e.currentTarget) onClose(); }}>
+    // 新增：檢查是否有未存檔的變更
+    const handleClose = () => {
+        const initialCategory = note?.category || "";
+        const initialSubcategory = note?.subcategory || "";
+        const initialTitle = note?.title || "";
+        const initialContent = note?.content || "";
+
+        const hasChanges = 
+            formData.category !== initialCategory ||
+            formData.subcategory !== initialSubcategory ||
+            formData.title !== initialTitle ||
+            formData.content !== initialContent;
+
+        if (hasChanges) {
+            if (confirm("編輯內容還未存檔，是否離開？")) {
+                onClose();
+            }
+        } else {
+            onClose();
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 bg-stone-900/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={(e) => { if(e.target === e.currentTarget) handleClose(); }}>
             <div className="absolute top-6 bottom-6 left-4 right-4 mx-auto max-w-lg bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden">
                 <nav className="flex justify-between items-center p-4 border-b border-gray-100">
-                    <button onClick={onClose} className="text-gray-500 hover:text-gray-800 px-2">取消</button>
+                    <button onClick={handleClose} className="text-gray-500 hover:text-gray-800 px-2">取消</button>
                     <h3 className="font-bold text-gray-800">{isNew ? "新增筆記" : "修改筆記"}</h3>
                     <button onClick={handleSave} className="bg-stone-800 text-white px-4 py-1.5 rounded-full text-sm font-bold">儲存</button>
                 </nav>
@@ -370,16 +392,19 @@ const ResponseModal = ({ note, responses = [], onClose, onSave, onDelete }) => {
     const [view, setView] = useState('list');
     const [editingId, setEditingId] = useState(null);
     const [editText, setEditText] = useState("");
+    const [originalText, setOriginalText] = useState(""); // 新增：紀錄原始文字
 
     const handleEdit = (responseItem) => {
         setEditingId(responseItem.id);
         setEditText(responseItem.text);
+        setOriginalText(responseItem.text); // 紀錄原始值
         setView('edit');
     };
 
     const handleNew = () => {
         setEditingId(null);
         setEditText("");
+        setOriginalText(""); // 紀錄原始值
         setView('edit');
     };
 
@@ -389,19 +414,30 @@ const ResponseModal = ({ note, responses = [], onClose, onSave, onDelete }) => {
         setView('list');
     };
 
+    // 新增：通用檢查邏輯
+    const handleCheckUnsaved = (action) => {
+        if (view === 'edit' && editText !== originalText) {
+            if (confirm("編輯內容還未存檔，是否離開？")) {
+                action();
+            }
+        } else {
+            action();
+        }
+    };
+
     return (
-        <div className="fixed inset-0 z-50 bg-stone-900/60 backdrop-blur-sm flex justify-center items-end sm:items-center p-0 sm:p-4 animate-in fade-in duration-200" onClick={(e) => { if(e.target === e.currentTarget) onClose(); }}>
+        <div className="fixed inset-0 z-50 bg-stone-900/60 backdrop-blur-sm flex justify-center items-end sm:items-center p-0 sm:p-4 animate-in fade-in duration-200" onClick={(e) => { if(e.target === e.currentTarget) handleCheckUnsaved(onClose); }}>
             <div className="bg-white w-full max-w-lg h-[70%] sm:h-auto rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden">
                 <nav className="flex justify-between items-center p-4 border-b border-gray-100 shrink-0">
                     {view === 'list' ? (
                         <>
-                            <button onClick={onClose} className="text-gray-500 hover:text-gray-800 px-2">關閉</button>
+                            <button onClick={() => handleCheckUnsaved(onClose)} className="text-gray-500 hover:text-gray-800 px-2">關閉</button>
                             <h3 className="font-bold text-gray-800">回應列表 ({responses.length})</h3>
                             <div className="w-8"></div>
                         </>
                     ) : (
                         <>
-                            <button onClick={() => setView('list')} className="text-gray-500 hover:text-gray-800 px-2">返回</button>
+                            <button onClick={() => handleCheckUnsaved(() => setView('list'))} className="text-gray-500 hover:text-gray-800 px-2">返回</button>
                             <h3 className="font-bold text-gray-800">{editingId ? "修改回應" : "新增回應"}</h3>
                             <button onClick={handleSaveCurrent} className="bg-stone-800 text-white px-4 py-1.5 rounded-full text-sm font-bold">儲存</button>
                         </>
@@ -1091,6 +1127,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

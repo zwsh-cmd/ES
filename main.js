@@ -736,27 +736,32 @@ function EchoScriptApp() {
     useEffect(() => { hasUnsavedChangesRef.current = hasUnsavedChanges; }, [hasUnsavedChanges]);
     useEffect(() => { responseViewModeRef.current = responseViewMode; }, [responseViewMode]);
 
-    // 修改：處理手機「返回鍵」邏輯 (優化版：防止重複推入歷史紀錄)
+    // 修改：處理手機「返回鍵」邏輯 (穩定版：使用 setTimeout 解決競態條件)
     useEffect(() => {
         const isAnyModalOpen = showMenuModal || showAllNotesModal || showEditModal || showResponseModal;
 
         const handlePopState = (event) => {
-            // 1. 使用 Ref 取得最新狀態 (不會因為打字而重置 Listener)
+            // 1. 優先檢查：是否有未存檔內容？
             if (hasUnsavedChangesRef.current) {
                 if (!confirm("編輯內容還未存檔，是否離開？")) {
-                    // 使用者選擇「取消/留下來」：把歷史紀錄補回去，這很重要，確保下一次按返回還能觸發
-                    window.history.pushState({ modalOpen: true }, "", window.location.href);
+                    // 使用者選擇「取消/留下來」
+                    // 關鍵修正：使用 setTimeout 延遲推入，確保瀏覽器已完成 pop 動作，防止歷史紀錄錯亂
+                    setTimeout(() => {
+                        window.history.pushState({ modalOpen: true }, "", window.location.href);
+                    }, 50);
                     return;
                 }
-                // 使用者選擇「確定/離開」：清除未存檔標記，程式碼會繼續往下執行
+                // 使用者選擇「確定/離開」，清除未存檔標記，繼續執行後續邏輯
                 setHasUnsavedChanges(false);
             }
 
             // 2. 導航檢查：回應編輯 -> 回應列表
             if (showResponseModal && responseViewModeRef.current === 'edit') {
                 setResponseViewMode('list');
-                // 留在列表頁，所以要補回歷史紀錄，防止APP關閉
-                window.history.pushState({ modalOpen: true }, "", window.location.href);
+                // 因為我們還在 Modal 裡，必須補回歷史紀錄
+                setTimeout(() => {
+                    window.history.pushState({ modalOpen: true }, "", window.location.href);
+                }, 50);
                 return;
             }
 
@@ -767,11 +772,12 @@ function EchoScriptApp() {
                 setShowEditModal(false);
                 setShowResponseModal(false);
                 setResponseViewMode('list');
+                // 這裡不需 pushState，因為我們確實要讓它「返回」到主畫面 (消耗掉歷史紀錄)
             }
         };
 
         if (isAnyModalOpen) {
-            // 只有在視窗「剛打開」的時候推入一次歷史紀錄
+            // 當視窗打開時，建立一個歷史錨點
             window.history.pushState({ modalOpen: true }, "", window.location.href);
             window.addEventListener('popstate', handlePopState);
         }
@@ -779,7 +785,6 @@ function EchoScriptApp() {
         return () => {
             window.removeEventListener('popstate', handlePopState);
         };
-    // 關鍵修改：移除 hasUnsavedChanges 和 responseViewMode 依賴
     }, [showMenuModal, showAllNotesModal, showEditModal, showResponseModal]);
 
     useEffect(() => {
@@ -1216,6 +1221,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

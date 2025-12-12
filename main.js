@@ -766,57 +766,45 @@ function EchoScriptApp() {
 
     // 2. 返回鍵監聽 (PopState)
     useEffect(() => {
-        const handlePopState = (event) => {
-            // === A. 未存檔攔截 (預先補票策略) ===
-            if (hasUnsavedChangesRef.current) {
-                // [關鍵] 瀏覽器已經退回去了，我們先「立刻」補一槍回去，把牆擋住
-                // 這樣就算 confirm 卡住或使用者按取消，牆壁都已經存在
-                window.history.pushState({ page: 'modal_guard', time: Date.now() }, '', '');
+            const handlePopState = (event) => {
+        // Goal 1 & 2: 編輯中狂按返回也不會整個APP關掉
+        if (hasUnsavedChangesRef.current) {
+            window.history.pushState({ page: 'modal_active', guarded: true }, '', '');
 
-                // 然後才問使用者
-                const leave = confirm("編輯內容還未存檔，是否離開？");
+            const leave = confirm("編輯內容還未存檔，是否離開？");
 
-                if (leave) {
-                    // 使用者選「離開」(確定要走)
-                    setHasUnsavedChanges(false);
-                    hasUnsavedChangesRef.current = false;
-                    
-                    // 因為我們剛剛為了擋牆多推了一次 (modal_guard)
-                    // 所以現在要「倒退兩步」才能真正關閉視窗
-                    // (第一步退 guard，第二步退 modal)
-                    window.history.go(-2);
-                } 
-                // 如果使用者選「取消」，我們什麼都不用做
-                // 因為我們在第一行已經把牆補回去了，現在狀態是安全的
-                return;
+            if (leave) {
+                setHasUnsavedChanges(false);
+                hasUnsavedChangesRef.current = false;
+                window.history.go(-2);
             }
+            return;
+        }
 
-            // === B. 視窗內導航 (編輯 -> 列表) ===
-            if (showResponseModal && responseViewModeRef.current === 'edit') {
-                setResponseViewMode('list');
-                window.history.pushState({ page: 'modal', time: Date.now() }, '', '');
-                return;
-            }
+        // Goal 1 & 3: ResponseModal 內部從編輯回到列表
+        if (showResponseModal && responseViewModeRef.current === 'edit') {
+            setResponseViewMode('list');
+            window.history.pushState({ page: 'response_list', time: Date.now() }, '', '');
+            return;
+        }
 
-            // === C. 關閉視窗 (回到首頁) ===
-            const isAnyModalOpen = showMenuModal || showAllNotesModal || showEditModal || showResponseModal;
-            if (isAnyModalOpen) {
-                setShowMenuModal(false);
-                setShowAllNotesModal(false);
-                setShowEditModal(false);
-                setShowResponseModal(false);
-                setResponseViewMode('list');
-                return;
-            }
+        // Goal 1: 任何 Modal 開啟時按返回 = 關閉 Modal
+        if (showMenuModal || showAllNotesModal || showEditModal || showResponseModal) {
+            setShowMenuModal(false);
+            setShowAllNotesModal(false);
+            setShowEditModal(false);
+            setShowResponseModal(false);
+            setResponseViewMode('list');
+            return;
+        }
 
-            // === D. 首頁退出確認 ===
-            // 只有在首頁才會執行到這裡
-            if (confirm("是否退出程式？")) {
-                window.history.back(); // 真正的退出
-            } else {
-                window.history.pushState({ page: 'home' }, '', ''); // 補回首頁狀態
-            }
-        };
+        // Goal 3: 只有在首頁才問是否退出程式
+        if (confirm("是否退出程式？")) {
+            window.history.back();
+        } else {
+            window.history.pushState({ page: 'home' }, '', '');
+        }
+    };
 
         window.addEventListener('popstate', handlePopState);
         return () => window.removeEventListener('popstate', handlePopState);
@@ -1256,6 +1244,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

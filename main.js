@@ -766,43 +766,50 @@ function EchoScriptApp() {
 
     // 2. 返回鍵監聽 (PopState)
     useEffect(() => {
-            const handlePopState = (event) => {
-        // Goal 1 & 2: 編輯中狂按返回也不會整個APP關掉
+                const handlePopState = (event) => {
+        // === 升級版：編輯中無條件補推緩衝，防止連按退出 APP ===
         if (hasUnsavedChangesRef.current) {
+            // 關鍵升級：每次都補推「原 modal + 額外緩衝」，確保堆疊有 2 層以上
             window.history.pushState({ page: 'modal_active', guarded: true }, '', '');
+            window.history.pushState({ page: 'modal_buffer', guarded: true }, '', '');  // 額外緩衝層
 
             const leave = confirm("編輯內容還未存檔，是否離開？");
 
             if (leave) {
                 setHasUnsavedChanges(false);
                 hasUnsavedChangesRef.current = false;
-                window.history.go(-2);
+                // 退 3 步：緩衝 + 補推 + 原 modal
+                window.history.go(-3);
             }
+            // 按取消：堆疊已多 2 層，下次還會觸發（絕不退出）
             return;
         }
 
-        // Goal 1 & 3: ResponseModal 內部從編輯回到列表
+        // ResponseModal 內部導航（編輯 → 列表）
         if (showResponseModal && responseViewModeRef.current === 'edit') {
             setResponseViewMode('list');
+            // 補推緩衝，防止退出
             window.history.pushState({ page: 'response_list', time: Date.now() }, '', '');
             return;
         }
 
-        // Goal 1: 任何 Modal 開啟時按返回 = 關閉 Modal
+        // 任何 Modal 開啟：關閉 Modal（回到主畫面），補推緩衝
         if (showMenuModal || showAllNotesModal || showEditModal || showResponseModal) {
             setShowMenuModal(false);
             setShowAllNotesModal(false);
             setShowEditModal(false);
             setShowResponseModal(false);
             setResponseViewMode('list');
+            // 補推主頁緩衝，防止直接退出
+            window.history.pushState({ page: 'home_buffer', time: Date.now() }, '', '');
             return;
         }
 
-        // Goal 3: 只有在首頁才問是否退出程式
+        // 只有首頁：問是否退出
         if (confirm("是否退出程式？")) {
-            window.history.back();
+            window.history.back();  // 真正退出
         } else {
-            window.history.pushState({ page: 'home' }, '', '');
+            window.history.pushState({ page: 'home' }, '', '');  // 補回首頁
         }
     };
 
@@ -1244,6 +1251,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

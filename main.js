@@ -736,23 +736,21 @@ function EchoScriptApp() {
     useEffect(() => { hasUnsavedChangesRef.current = hasUnsavedChanges; }, [hasUnsavedChanges]);
     useEffect(() => { responseViewModeRef.current = responseViewMode; }, [responseViewMode]);
 
-    // === 終極導航控制器 (觸發啟動 + 預先補票機制) ===
+    // === 絕對防禦導航控制器 (單一邏輯版) ===
 
-    // 1. 初始化與狀態推入
+    // 1. 初始化與狀態推入 (使用觸發式啟動以配合 Android)
     useEffect(() => {
-        // [關鍵修正] Android 禁止自動修改歷史紀錄，必須由「使用者互動」觸發
-        // 所以我們監聽第一次點擊或觸控，才把「首頁防護網」架起來
         const initGuard = () => {
             if (!window.history.state || window.history.state.page !== 'home') {
                 window.history.replaceState({ page: 'root' }, '', '');
                 window.history.pushState({ page: 'home' }, '', '');
             }
         };
-        // 監聽任意點擊，執行一次後就移除
+        // 使用者第一次互動時才建立防護網
         window.addEventListener('click', initGuard, { once: true });
         window.addEventListener('touchstart', initGuard, { once: true });
 
-        // 當視窗開啟時，推入歷史紀錄
+        // 當任何視窗開啟時，推入一個歷史紀錄
         const isAnyModalOpen = showMenuModal || showAllNotesModal || showEditModal || showResponseModal;
         if (isAnyModalOpen) {
             window.history.pushState({ page: 'modal', time: Date.now() }, '', '');
@@ -764,115 +762,71 @@ function EchoScriptApp() {
         };
     }, [showMenuModal, showAllNotesModal, showEditModal, showResponseModal]);
 
-    // 2. 返回鍵監聽 (PopState)
+    // 2. 統一的返回鍵監聽器
     useEffect(() => {
-                    const handlePopState = (event) => {
-        // 2025 PWA 標準：結合 popstate + Close Watcher 緩衝
-        if (hasUnsavedChangesRef.current) {
-            // 多層 history 緩衝（至少 3 層）
-            window.history.pushState({ page: 'modal_active' }, '', '');
-            window.history.pushState({ page: 'modal_buffer1' }, '', '');
-            window.history.pushState({ page: 'modal_buffer2' }, '', '');
+        const handlePopState = (event) => {
+            // === A. 未存檔保護 (無限迴圈鎖定) ===
+            if (hasUnsavedChangesRef.current) {
+                // 瀏覽器已經執行了「上一頁」(modal層消失)，我們立刻補上一個「守衛層」
+                // 這樣 stack 狀態變成：[Root, Home, Modal_Guard]
+                window.history.pushState({ page: 'modal_guard', time: Date.now() }, '', '');
 
-            const leave = confirm("編輯內容還未存檔，是否離開？");
-            if (leave) {
-                setHasUnsavedChanges(false);
-                hasUnsavedChangesRef.current = false;
-                window.history.go(-4);  // 退掉所有緩衝 + 原 modal
+                // 接著才跳出詢問
+                const leave = confirm("編輯內容還未存檔，是否離開？");
+
+                if (leave) {
+                    // 如果使用者選「離開」：
+                    // 1. 解除鎖定
+                    setHasUnsavedChanges(false);
+                    hasUnsavedChangesRef.current = false;
+                    
+                    // 2. 因為我們剛剛手動補了一層 modal_guard，現在要把它退掉
+                    // 同時還要退掉原本的 modal 層，所以理論上要退兩步或執行關閉邏輯
+                    // 最簡單的方式是：直接手動執行關閉 UI，歷史紀錄就讓它去 (它會變成當前狀態)
+                    window.history.back(); // 退掉剛剛補的 guard
+                } 
+                // 如果使用者選「取消」(留下來)：
+                // 我們什麼都不用做！因為在第 1 步我們已經把 'modal_guard' 推入歷史紀錄了。
+                // 現在使用者位於 'modal_guard'。
+                // 如果他再次按返回 -> 觸發 popstate -> 再次進入此函式 -> 再次推入 guard -> 再次詢問。
+                // 這就形成了無限迴圈保護。
+                return;
             }
-            return;
-        }
 
-        // ResponseModal 內部：編輯 → 列表
-        if (showResponseModal && responseViewModeRef.current === 'edit') {
-            setResponseViewMode('list');
-            window.history.pushState({ page: 'response_list' }, '', '');
-            return;
-        }
+            // === B. 視窗內導航 (編輯模式 -> 列表) ===
+            if (showResponseModal && responseViewModeRef.current === 'edit') {
+                setResponseViewMode('list');
+                // 補回歷史紀錄，因為視窗沒關
+                window.history.pushState({ page: 'modal', time: Date.now() }, '', '');
+                return;
+            }
 
-        // Modal 開啟：關閉 modal，補推緩衝
-        if (showMenuModal || showAllNotesModal || showEditModal || showResponseModal) {
-            setShowMenuModal(false);
-            setShowAllNotesModal(false);
-            setShowEditModal(false);
-            setShowResponseModal(false);
-            setResponseViewMode('list');
-            window.history.pushState({ page: 'home_buffer' }, '', '');
-            return;
-        }
+            // === C. 關閉視窗 (回到首頁) ===
+            const isAnyModalOpen = showMenuModal || showAllNotesModal || showEditModal || showResponseModal;
+            if (isAnyModalOpen) {
+                setShowMenuModal(false);
+                setShowAllNotesModal(false);
+                setShowEditModal(false);
+                setShowResponseModal(false);
+                setResponseViewMode('list');
+                // 不用補紀錄，因為瀏覽器已經退回 Home 了
+                return;
+            }
 
-        // 首頁：問退出
-        if (confirm("是否退出程式？")) {
-            window.history.back();
-        } else {
-            window.history.pushState({ page: 'home' }, '', '');
-        }
-    };
+            // === D. 首頁退出確認 ===
+            // 只有在首頁才會執行到這裡
+            if (confirm("是否退出程式？")) {
+                // 確認退出：執行真正的上一頁 (退出 App)
+                window.history.back();
+            } else {
+                // 取消退出：把 Home 補回去，留在 App 內
+                window.history.pushState({ page: 'home' }, '', '');
+            }
+        };
 
         window.addEventListener('popstate', handlePopState);
         return () => window.removeEventListener('popstate', handlePopState);
     }, [showMenuModal, showAllNotesModal, showEditModal, showResponseModal]);
-
-        // 新增：2025 Close Watcher API - 攔截 Android hardware back（防止直接退出）
-    useEffect(() => {
-        if (!('beforeclose' in self)) return;  // 只在支援的瀏覽器執行（Chrome 2025+）
-
-        let closeWatcher = null;
-
-        const initCloseWatcher = () => {
-            if (closeWatcher) closeWatcher.stop();
-            closeWatcher = new CloseWatcher({
-                onbeforeclose: (reason) => {
-                    // 如果是 Android back button 或無互動退出
-                    if (reason === 'close-button' || reason === 'back-gesture') {
-                        if (hasUnsavedChangesRef.current) {
-                            // 編輯中：攔截並跳 confirm
-                            event.preventDefault();
-                            const leave = confirm("編輯內容還未存檔，是否離開？");
-                            if (leave) {
-                                setHasUnsavedChanges(false);
-                                hasUnsavedChangesRef.current = false;
-                                closeWatcher.close();  // 允許退出
-                            }
-                            // 按取消：阻止退出，繼續編輯
-                            return;
-                        }
-
-                        // 非編輯：檢查是否首頁
-                        const isAnyModalOpen = showMenuModal || showAllNotesModal || showEditModal || showResponseModal;
-                        if (isAnyModalOpen) {
-                            // 關閉 modal，不退出
-                            event.preventDefault();
-                            setShowMenuModal(false);
-                            setShowAllNotesModal(false);
-                            setShowEditModal(false);
-                            setShowResponseModal(false);
-                            setResponseViewMode('list');
-                            return;
-                        } else {
-                            // 首頁：問退出
-                            event.preventDefault();
-                            const exitApp = confirm("是否退出程式？");
-                            if (exitApp) {
-                                closeWatcher.close();
-                            }
-                        }
-                    }
-                }
-            });
-        };
-
-        // 監聽狀態變化，重啟 watcher
-        const unsubscribe = () => {
-            if (closeWatcher) closeWatcher.stop();
-        };
-
-        initCloseWatcher();
-        window.addEventListener('focus', initCloseWatcher);
-        window.addEventListener('blur', unsubscribe);
-
-        return unsubscribe;
-    }, [hasUnsavedChanges, showMenuModal, showAllNotesModal, showEditModal, showResponseModal]);
     
     useEffect(() => {
         try {
@@ -1308,6 +1262,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

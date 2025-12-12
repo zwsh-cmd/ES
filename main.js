@@ -728,26 +728,34 @@ function EchoScriptApp() {
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
     const [responseViewMode, setResponseViewMode] = useState('list'); // 'list' or 'edit'
 
-    // 修改：處理手機「返回鍵」邏輯 (整合未存檔檢查與導航)
+    // 新增：使用 Ref 追蹤狀態，解決 EventListener 閉包過期與依賴重覆觸發的問題
+    const hasUnsavedChangesRef = useRef(hasUnsavedChanges);
+    const responseViewModeRef = useRef(responseViewMode);
+
+    // 同步 Ref 與 State
+    useEffect(() => { hasUnsavedChangesRef.current = hasUnsavedChanges; }, [hasUnsavedChanges]);
+    useEffect(() => { responseViewModeRef.current = responseViewMode; }, [responseViewMode]);
+
+    // 修改：處理手機「返回鍵」邏輯 (優化版：防止重複推入歷史紀錄)
     useEffect(() => {
         const isAnyModalOpen = showMenuModal || showAllNotesModal || showEditModal || showResponseModal;
 
         const handlePopState = (event) => {
-            // 1. 優先檢查：是否有未存檔內容？
-            if (hasUnsavedChanges) {
+            // 1. 使用 Ref 取得最新狀態 (不會因為打字而重置 Listener)
+            if (hasUnsavedChangesRef.current) {
                 if (!confirm("編輯內容還未存檔，是否離開？")) {
-                    // 使用者選擇「取消/留下來」
-                    // 把歷史紀錄補回去，維持在當前頁面
+                    // 使用者選擇「取消/留下來」：把歷史紀錄補回去，這很重要，確保下一次按返回還能觸發
                     window.history.pushState({ modalOpen: true }, "", window.location.href);
                     return;
                 }
-                // 使用者選擇「確定/離開」，清除未存檔標記，繼續執行後續關閉邏輯
+                // 使用者選擇「確定/離開」：清除未存檔標記，程式碼會繼續往下執行
                 setHasUnsavedChanges(false);
             }
 
-            // 2. 導航檢查：如果在「回應編輯」模式，按返回鍵應回到「回應列表」
-            if (showResponseModal && responseViewMode === 'edit') {
+            // 2. 導航檢查：回應編輯 -> 回應列表
+            if (showResponseModal && responseViewModeRef.current === 'edit') {
                 setResponseViewMode('list');
+                // 留在列表頁，所以要補回歷史紀錄，防止APP關閉
                 window.history.pushState({ modalOpen: true }, "", window.location.href);
                 return;
             }
@@ -758,12 +766,12 @@ function EchoScriptApp() {
                 setShowAllNotesModal(false);
                 setShowEditModal(false);
                 setShowResponseModal(false);
-                // 重置回應模式
                 setResponseViewMode('list');
             }
         };
 
         if (isAnyModalOpen) {
+            // 只有在視窗「剛打開」的時候推入一次歷史紀錄
             window.history.pushState({ modalOpen: true }, "", window.location.href);
             window.addEventListener('popstate', handlePopState);
         }
@@ -771,7 +779,8 @@ function EchoScriptApp() {
         return () => {
             window.removeEventListener('popstate', handlePopState);
         };
-    }, [showMenuModal, showAllNotesModal, showEditModal, showResponseModal, hasUnsavedChanges, responseViewMode]);
+    // 關鍵修改：移除 hasUnsavedChanges 和 responseViewMode 依賴
+    }, [showMenuModal, showAllNotesModal, showEditModal, showResponseModal]);
 
     useEffect(() => {
         try {
@@ -1207,6 +1216,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

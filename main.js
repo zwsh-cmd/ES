@@ -736,48 +736,51 @@ function EchoScriptApp() {
     useEffect(() => { hasUnsavedChangesRef.current = hasUnsavedChanges; }, [hasUnsavedChanges]);
     useEffect(() => { responseViewModeRef.current = responseViewMode; }, [responseViewMode]);
 
-    // 修改：處理手機「返回鍵」邏輯 (穩定版：使用 setTimeout 解決競態條件)
+    // 修改：處理手機「返回鍵」邏輯 (最終修正版：同步推入歷史紀錄，確保攔截生效)
     useEffect(() => {
         const isAnyModalOpen = showMenuModal || showAllNotesModal || showEditModal || showResponseModal;
 
         const handlePopState = (event) => {
             // 1. 優先檢查：是否有未存檔內容？
             if (hasUnsavedChangesRef.current) {
-                if (!confirm("編輯內容還未存檔，是否離開？")) {
+                const stay = !confirm("編輯內容還未存檔，是否離開？");
+                
+                if (stay) {
                     // 使用者選擇「取消/留下來」
-                    // 關鍵修正：使用 setTimeout 延遲推入，確保瀏覽器已完成 pop 動作，防止歷史紀錄錯亂
-                    setTimeout(() => {
-                        window.history.pushState({ modalOpen: true }, "", window.location.href);
-                    }, 50);
-                    return;
+                    // 立即補回歷史紀錄，再次形成「攔截網」
+                    // 這裡不使用 setTimeout，確保在事件循環結束前就鎖定狀態
+                    window.history.pushState({ modalOpen: true }, "", window.location.href);
+                    return; // 中斷執行，停留在當前畫面
                 }
-                // 使用者選擇「確定/離開」，清除未存檔標記，繼續執行後續邏輯
+                
+                // 使用者選擇「確定/離開」
+                // 清除未存檔標記，但【不要 return】，讓程式繼續往下跑
+                // 這樣才能觸發下面的「切回回應列表」或「關閉視窗」邏輯
                 setHasUnsavedChanges(false);
             }
 
             // 2. 導航檢查：回應編輯 -> 回應列表
             if (showResponseModal && responseViewModeRef.current === 'edit') {
                 setResponseViewMode('list');
-                // 因為我們還在 Modal 裡，必須補回歷史紀錄
-                setTimeout(() => {
-                    window.history.pushState({ modalOpen: true }, "", window.location.href);
-                }, 50);
+                // 我們雖然切換了 View，但視窗(Modal)還是開著的
+                // 所以必須補回歷史紀錄，否則下一次按返回就會直接關閉 APP
+                window.history.pushState({ modalOpen: true }, "", window.location.href);
                 return;
             }
 
-            // 3. 預設行為：關閉所有視窗
+            // 3. 預設行為：關閉所有視窗 (回到主畫面)
             if (isAnyModalOpen) {
                 setShowMenuModal(false);
                 setShowAllNotesModal(false);
                 setShowEditModal(false);
                 setShowResponseModal(false);
                 setResponseViewMode('list');
-                // 這裡不需 pushState，因為我們確實要讓它「返回」到主畫面 (消耗掉歷史紀錄)
+                // 這裡不需要 pushState，因為使用者的意圖就是「返回」（消耗掉這筆歷史紀錄）
             }
         };
 
         if (isAnyModalOpen) {
-            // 當視窗打開時，建立一個歷史錨點
+            // 當視窗打開時，推入一筆歷史紀錄作為「擋箭牌」
             window.history.pushState({ modalOpen: true }, "", window.location.href);
             window.addEventListener('popstate', handlePopState);
         }
@@ -1221,6 +1224,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

@@ -213,8 +213,8 @@ const HighlightingEditor = ({ value, onChange, textareaRef }) => {
 };
 
 // === 4. Markdown 編輯器組件 (整合高亮編輯器) ===
-// 修改：加入 onDelete 參數
-const MarkdownEditorModal = ({ note, existingNotes = [], isNew = false, onClose, onSave, onDelete }) => {
+// 修改：加入 setHasUnsavedChanges 參數，並監聽內容變更
+const MarkdownEditorModal = ({ note, existingNotes = [], isNew = false, onClose, onSave, onDelete, setHasUnsavedChanges }) => {
     const [formData, setFormData] = useState({
         category: note?.category || "",
         subcategory: note?.subcategory || "",
@@ -223,6 +223,26 @@ const MarkdownEditorModal = ({ note, existingNotes = [], isNew = false, onClose,
     });
 
     const [activeTab, setActiveTab] = useState('write'); 
+
+    // 新增：監聽內容變更，同步狀態給主程式 (給手機返回鍵使用)
+    useEffect(() => {
+        const initialCategory = note?.category || "";
+        const initialSubcategory = note?.subcategory || "";
+        const initialTitle = note?.title || "";
+        const initialContent = note?.content || "";
+
+        const hasChanges = 
+            formData.category !== initialCategory ||
+            formData.subcategory !== initialSubcategory ||
+            formData.title !== initialTitle ||
+            formData.content !== initialContent;
+            
+        // 如果 setHasUnsavedChanges 存在才執行 (防止報錯)
+        if (setHasUnsavedChanges) setHasUnsavedChanges(hasChanges);
+
+        // 卸載時重置狀態
+        return () => { if (setHasUnsavedChanges) setHasUnsavedChanges(false); };
+    }, [formData, note, setHasUnsavedChanges]);
 
     const existingCategories = useMemo(() => {
         return [...new Set(existingNotes.map(n => n.category).filter(Boolean))];
@@ -283,7 +303,7 @@ const MarkdownEditorModal = ({ note, existingNotes = [], isNew = false, onClose,
         onSave({ ...note, ...formData, id: note?.id || Date.now() });
     };
 
-    // 新增：檢查是否有未存檔的變更
+    // 內部的關閉按鈕邏輯 (備用，主要依賴主程式的攔截)
     const handleClose = () => {
         const initialCategory = note?.category || "";
         const initialSubcategory = note?.subcategory || "";
@@ -375,7 +395,7 @@ const MarkdownEditorModal = ({ note, existingNotes = [], isNew = false, onClose,
 
                 {/* 底部刪除按鈕區 (僅在修改模式顯示) */}
                 {!isNew && (
-                    <div className="p-4 border-t border-gray-100 flex justify-end bg-gray-50 sm:rounded-b-2xl">
+                    <div className="p-4 border-t border-gray-100 flex justify-end bg-gray-50 rounded-b-2xl">
                         <button onClick={onDelete} className="text-stone-400 hover:text-stone-600 flex items-center gap-2 text-xs font-bold transition-colors">
                             <Trash2 className="w-4 h-4" /> 刪除筆記
                         </button>
@@ -387,36 +407,43 @@ const MarkdownEditorModal = ({ note, existingNotes = [], isNew = false, onClose,
 };
 
 // === 5. 回應編輯視窗 ===
-// 修改：加入 onDelete 參數
-const ResponseModal = ({ note, responses = [], onClose, onSave, onDelete }) => {
-    const [view, setView] = useState('list');
+// 修改：接收 viewMode 與 setHasUnsavedChanges
+const ResponseModal = ({ note, responses = [], onClose, onSave, onDelete, viewMode, setViewMode, setHasUnsavedChanges }) => {
     const [editingId, setEditingId] = useState(null);
     const [editText, setEditText] = useState("");
-    const [originalText, setOriginalText] = useState(""); // 新增：紀錄原始文字
+    const [originalText, setOriginalText] = useState("");
+
+    // 新增：監聽內容變更，回報給主程式
+    useEffect(() => {
+        const isDirty = viewMode === 'edit' && editText !== originalText;
+        if (setHasUnsavedChanges) setHasUnsavedChanges(isDirty);
+        return () => { if (setHasUnsavedChanges) setHasUnsavedChanges(false); };
+    }, [editText, originalText, viewMode, setHasUnsavedChanges]);
 
     const handleEdit = (responseItem) => {
         setEditingId(responseItem.id);
         setEditText(responseItem.text);
-        setOriginalText(responseItem.text); // 紀錄原始值
-        setView('edit');
+        setOriginalText(responseItem.text); 
+        if (setViewMode) setViewMode('edit');
     };
 
     const handleNew = () => {
         setEditingId(null);
         setEditText("");
-        setOriginalText(""); // 紀錄原始值
-        setView('edit');
+        setOriginalText(""); 
+        if (setViewMode) setViewMode('edit');
     };
 
     const handleSaveCurrent = () => {
         if (!editText.trim()) return;
         onSave(editText, editingId);
-        setView('list');
+        // 儲存後自動切回列表
+        if (setViewMode) setViewMode('list');
     };
 
-    // 新增：通用檢查邏輯
+    // 內部的檢查邏輯 (點擊背景或按鈕時使用)
     const handleCheckUnsaved = (action) => {
-        if (view === 'edit' && editText !== originalText) {
+        if (viewMode === 'edit' && editText !== originalText) {
             if (confirm("編輯內容還未存檔，是否離開？")) {
                 action();
             }
@@ -429,7 +456,7 @@ const ResponseModal = ({ note, responses = [], onClose, onSave, onDelete }) => {
         <div className="fixed inset-0 z-50 bg-stone-900/60 backdrop-blur-sm flex justify-center items-end sm:items-center p-0 sm:p-4 animate-in fade-in duration-200" onClick={(e) => { if(e.target === e.currentTarget) handleCheckUnsaved(onClose); }}>
             <div className="bg-white w-full max-w-lg h-[70%] sm:h-auto rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden">
                 <nav className="flex justify-between items-center p-4 border-b border-gray-100 shrink-0">
-                    {view === 'list' ? (
+                    {viewMode === 'list' ? (
                         <>
                             <button onClick={() => handleCheckUnsaved(onClose)} className="text-gray-500 hover:text-gray-800 px-2">關閉</button>
                             <h3 className="font-bold text-gray-800">回應列表 ({responses.length})</h3>
@@ -437,7 +464,7 @@ const ResponseModal = ({ note, responses = [], onClose, onSave, onDelete }) => {
                         </>
                     ) : (
                         <>
-                            <button onClick={() => handleCheckUnsaved(() => setView('list'))} className="text-gray-500 hover:text-gray-800 px-2">返回</button>
+                            <button onClick={() => handleCheckUnsaved(() => setViewMode('list'))} className="text-gray-500 hover:text-gray-800 px-2">返回</button>
                             <h3 className="font-bold text-gray-800">{editingId ? "修改回應" : "新增回應"}</h3>
                             <button onClick={handleSaveCurrent} className="bg-stone-800 text-white px-4 py-1.5 rounded-full text-sm font-bold">儲存</button>
                         </>
@@ -445,7 +472,7 @@ const ResponseModal = ({ note, responses = [], onClose, onSave, onDelete }) => {
                 </nav>
 
                 <div className="p-4 flex flex-col flex-1 overflow-y-auto custom-scrollbar">
-                    {view === 'list' ? (
+                    {viewMode === 'list' ? (
                         <>
                             <div className="mb-4 p-3 bg-stone-50 rounded-lg border border-stone-100">
                                 <p className="text-xs text-stone-500 mb-1">關於：{note.title}</p>
@@ -455,8 +482,8 @@ const ResponseModal = ({ note, responses = [], onClose, onSave, onDelete }) => {
                             <div className="space-y-3 mb-4">
                                 {responses.length > 0 ? responses.map(r => (
                                     <div key={r.id} className="relative group">
-                                        <div onClick={() => handleEdit(r)} className="bg-white p-3 rounded-lg border border-gray-200 hover:border-stone-400 cursor-pointer active:scale-[0.99] transition-all shadow-sm pr-8">
-                                            <div className="text-gray-700 whitespace-pre-wrap leading-relaxed break-words" style={{ whiteSpace: 'pre-wrap' }}>{r.text}</div>
+                                        <div onClick={() => handleEdit(r)} className="bg-white p-3 rounded-lg border border-gray-200 hover:border-stone-400 cursor-pointer active:scale-[0.99] transition-all shadow-sm">
+                                            <div className="text-gray-700 whitespace-pre-wrap leading-relaxed break-words pr-6" style={{ whiteSpace: 'pre-wrap' }}>{r.text}</div>
                                             <div className="mt-2 flex justify-between items-center">
                                                 <span className="text-[10px] text-gray-400">{new Date(r.timestamp).toLocaleString()}</span>
                                                 <span className="text-[10px] text-stone-500 opacity-0 group-hover:opacity-100 transition-opacity">點擊修改</span>
@@ -464,7 +491,7 @@ const ResponseModal = ({ note, responses = [], onClose, onSave, onDelete }) => {
                                         </div>
                                         <button 
                                             onClick={(e) => { e.stopPropagation(); onDelete(r.id); }} 
-                                            className="absolute right-2 top-2 p-1 text-stone-300 hover:text-red-500 transition-colors z-10"
+                                            className="absolute right-3 top-3 p-1 text-stone-300 hover:text-red-500 transition-colors z-10"
                                             title="刪除回應"
                                         >
                                             <Trash2 className="w-4 h-4" />
@@ -697,25 +724,46 @@ function EchoScriptApp() {
     const [touchStart, setTouchStart] = useState(null);
     const [touchCurrent, setTouchCurrent] = useState(null);
 
-    // 新增：處理手機「返回鍵」邏輯 (防止誤觸跳出 APP)
+    // 新增：全域狀態，讓主程式知道子視窗的狀況
+    const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+    const [responseViewMode, setResponseViewMode] = useState('list'); // 'list' or 'edit'
+
+    // 修改：處理手機「返回鍵」邏輯 (整合未存檔檢查與導航)
     useEffect(() => {
-        // 檢查是否有任何視窗開啟
         const isAnyModalOpen = showMenuModal || showAllNotesModal || showEditModal || showResponseModal;
 
         const handlePopState = (event) => {
-            // 當按下返回鍵 (觸發 popstate) 時，如果有視窗開啟，則關閉視窗
+            // 1. 優先檢查：是否有未存檔內容？
+            if (hasUnsavedChanges) {
+                if (!confirm("編輯內容還未存檔，是否離開？")) {
+                    // 使用者選擇「取消/留下來」
+                    // 把歷史紀錄補回去，維持在當前頁面
+                    window.history.pushState({ modalOpen: true }, "", window.location.href);
+                    return;
+                }
+                // 使用者選擇「確定/離開」，清除未存檔標記，繼續執行後續關閉邏輯
+                setHasUnsavedChanges(false);
+            }
+
+            // 2. 導航檢查：如果在「回應編輯」模式，按返回鍵應回到「回應列表」
+            if (showResponseModal && responseViewMode === 'edit') {
+                setResponseViewMode('list');
+                window.history.pushState({ modalOpen: true }, "", window.location.href);
+                return;
+            }
+
+            // 3. 預設行為：關閉所有視窗
             if (isAnyModalOpen) {
                 setShowMenuModal(false);
                 setShowAllNotesModal(false);
                 setShowEditModal(false);
                 setShowResponseModal(false);
-                // 這裡會直接關閉視窗，確保使用者留在 APP 內
+                // 重置回應模式
+                setResponseViewMode('list');
             }
         };
 
         if (isAnyModalOpen) {
-            // 當視窗開啟時，在瀏覽器歷史中「推入」一筆新紀錄
-            // 這樣按下返回鍵時，會消耗掉這筆紀錄，而不是跳出 APP
             window.history.pushState({ modalOpen: true }, "", window.location.href);
             window.addEventListener('popstate', handlePopState);
         }
@@ -723,7 +771,7 @@ function EchoScriptApp() {
         return () => {
             window.removeEventListener('popstate', handlePopState);
         };
-    }, [showMenuModal, showAllNotesModal, showEditModal, showResponseModal]);
+    }, [showMenuModal, showAllNotesModal, showEditModal, showResponseModal, hasUnsavedChanges, responseViewMode]);
 
     useEffect(() => {
         try {
@@ -1113,8 +1161,9 @@ function EchoScriptApp() {
                     existingNotes={notes}
                     isNew={isCreatingNew}
                     onClose={() => setShowEditModal(false)} 
-                    onSave={handleSaveNote} 
-                    onDelete={() => handleDeleteNote(currentNote?.id)}
+                    onSave={(data) => { handleSaveNote(data); setHasUnsavedChanges(false); }} 
+                    onDelete={() => { handleDeleteNote(currentNote?.id); setHasUnsavedChanges(false); }}
+                    setHasUnsavedChanges={setHasUnsavedChanges}
                 />
             )}
 
@@ -1139,8 +1188,11 @@ function EchoScriptApp() {
                     note={currentNote} 
                     responses={currentNoteResponses} 
                     onClose={() => setShowResponseModal(false)}
-                    onSave={handleSaveResponse}
+                    onSave={(text, id) => { handleSaveResponse(text, id); setHasUnsavedChanges(false); }}
                     onDelete={handleDeleteResponse}
+                    viewMode={responseViewMode}
+                    setViewMode={setResponseViewMode}
+                    setHasUnsavedChanges={setHasUnsavedChanges}
                 />
             )}
 
@@ -1155,6 +1207,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

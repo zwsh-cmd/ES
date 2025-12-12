@@ -283,8 +283,8 @@ const MarkdownEditorModal = ({ note, existingNotes = [], isNew = false, onClose,
         onSave({ ...note, ...formData, id: note?.id || Date.now() });
     };
 
-    return (
-        <div className="fixed inset-0 z-50 bg-stone-900/60 backdrop-blur-sm flex justify-center items-start pt-10 px-4 pb-4 animate-in fade-in duration-200 overflow-hidden" onClick={(e) => { if(e.target === e.currentTarget) onClose(); }}>
+   return (
+        <div className="fixed inset-0 z-50 bg-stone-900/60 backdrop-blur-sm flex justify-center items-start pt-14 px-4 pb-4 animate-in fade-in duration-200 overflow-hidden" onClick={(e) => { if(e.target === e.currentTarget) onClose(); }}>
             <div className="bg-white w-full max-w-lg h-[85vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden">
                 <nav className="flex justify-between items-center p-4 border-b border-gray-100">
                     <button onClick={onClose} className="text-gray-500 hover:text-gray-800 px-2">取消</button>
@@ -1091,6 +1091,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

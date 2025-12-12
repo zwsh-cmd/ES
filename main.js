@@ -766,46 +766,45 @@ function EchoScriptApp() {
 
     // 2. 返回鍵監聽 (PopState)
     useEffect(() => {
-                    const handlePopState = (event) => {
-        // 2025 PWA 標準：結合 popstate + Close Watcher 緩衝
+            const handlePopState = (event) => {
+        // 基於 Ionic 2025 最佳實踐：處理 popstate，確保不退出 APP
         if (hasUnsavedChangesRef.current) {
-            // 多層 history 緩衝（至少 3 層）
-            window.history.pushState({ page: 'modal_active' }, '', '');
-            window.history.pushState({ page: 'modal_buffer1' }, '', '');
-            window.history.pushState({ page: 'modal_buffer2' }, '', '');
-
+            // 未存檔：跳 confirm，不關閉 APP
             const leave = confirm("編輯內容還未存檔，是否離開？");
             if (leave) {
                 setHasUnsavedChanges(false);
                 hasUnsavedChangesRef.current = false;
-                window.history.go(-4);  // 退掉所有緩衝 + 原 modal
+                // 只退一層（modal），不影響 APP
+                window.history.back();
+            } else {
+                // 取消：補推一層，恢復狀態
+                window.history.pushState({ page: 'modal_active' }, '', '');
             }
             return;
         }
 
-        // ResponseModal 內部：編輯 → 列表
+        // ResponseModal 內部：從編輯回到列表
         if (showResponseModal && responseViewModeRef.current === 'edit') {
             setResponseViewMode('list');
-            window.history.pushState({ page: 'response_list' }, '', '');
             return;
         }
 
-        // Modal 開啟：關閉 modal，補推緩衝
-        if (showMenuModal || showAllNotesModal || showEditModal || showResponseModal) {
+        // 任何 Modal 開啟：關閉 Modal（回到主畫面）
+        const isAnyModalOpen = showMenuModal || showAllNotesModal || showEditModal || showResponseModal;
+        if (isAnyModalOpen) {
             setShowMenuModal(false);
             setShowAllNotesModal(false);
             setShowEditModal(false);
             setShowResponseModal(false);
             setResponseViewMode('list');
-            window.history.pushState({ page: 'home_buffer' }, '', '');
             return;
         }
 
-        // 首頁：問退出
+        // 只有首頁：問是否退出 APP
         if (confirm("是否退出程式？")) {
-            window.history.back();
+            window.history.back();  // 真正退出
         } else {
-            window.history.pushState({ page: 'home' }, '', '');
+            window.history.pushState({ page: 'home' }, '', '');  // 補回首頁，防止退出
         }
     };
 
@@ -813,55 +812,36 @@ function EchoScriptApp() {
         return () => window.removeEventListener('popstate', handlePopState);
     }, [showMenuModal, showAllNotesModal, showEditModal, showResponseModal]);
 
-        // 新增：2025 Close Watcher API - 攔截 Android hardware back（防止直接退出）
+        // 新增：Ionic-style 自動推 history - 確保每個 modal 有足夠深度，防止退出 APP
     useEffect(() => {
-        if (!('beforeclose' in self)) return;  // 只在支援的瀏覽器執行（Chrome 2025+）
+        // 偵測是否在 standalone PWA 模式（Android APP）
+        const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
 
-        let closeWatcher = null;
+        if (!isStandalone) return;  // 只在 PWA APP 模式啟用
 
-        const initCloseWatcher = () => {
-            if (closeWatcher) closeWatcher.stop();
-            closeWatcher = new CloseWatcher({
-                onbeforeclose: (reason) => {
-                    // 如果是 Android back button 或無互動退出
-                    if (reason === 'close-button' || reason === 'back-gesture') {
-                        if (hasUnsavedChangesRef.current) {
-                            // 編輯中：攔截並跳 confirm
-                            event.preventDefault();
-                            const leave = confirm("編輯內容還未存檔，是否離開？");
-                            if (leave) {
-                                setHasUnsavedChanges(false);
-                                hasUnsavedChangesRef.current = false;
-                                closeWatcher.close();  // 允許退出
-                            }
-                            // 按取消：阻止退出，繼續編輯
-                            return;
-                        }
+        // 當任何 modal 開啟時，推入 history state（確保 ≥2 層）
+        const isAnyModalOpen = showMenuModal || showAllNotesModal || showEditModal || showResponseModal;
+        if (isAnyModalOpen && !hasUnsavedChangesRef.current) {
+            // 推入一層 dummy state
+            window.history.pushState({ page: 'modal_dummy' }, '', '');
+        }
 
-                        // 非編輯：檢查是否首頁
-                        const isAnyModalOpen = showMenuModal || showAllNotesModal || showEditModal || showResponseModal;
-                        if (isAnyModalOpen) {
-                            // 關閉 modal，不退出
-                            event.preventDefault();
-                            setShowMenuModal(false);
-                            setShowAllNotesModal(false);
-                            setShowEditModal(false);
-                            setShowResponseModal(false);
-                            setResponseViewMode('list');
-                            return;
-                        } else {
-                            // 首頁：問退出
-                            event.preventDefault();
-                            const exitApp = confirm("是否退出程式？");
-                            if (exitApp) {
-                                closeWatcher.close();
-                            }
-                        }
-                    }
-                }
-            });
+        // 強制互動偵測：監聽 scroll/click，補推 state（防止無互動退出）
+        const handleInteraction = () => {
+            if (isAnyModalOpen) {
+                window.history.pushState({ page: 'modal_interact' }, '', '');
+            }
         };
 
+        window.addEventListener('scroll', handleInteraction, { passive: true });
+        window.addEventListener('click', handleInteraction, { once: true });
+
+        return () => {
+            window.removeEventListener('scroll', handleInteraction);
+            window.removeEventListener('click', handleInteraction);
+        };
+    }, [showMenuModal, showAllNotesModal, showEditModal, showResponseModal]);
+        
         // 監聽狀態變化，重啟 watcher
         const unsubscribe = () => {
             if (closeWatcher) closeWatcher.stop();
@@ -1308,6 +1288,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

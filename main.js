@@ -736,48 +736,47 @@ function EchoScriptApp() {
     useEffect(() => { hasUnsavedChangesRef.current = hasUnsavedChanges; }, [hasUnsavedChanges]);
     useEffect(() => { responseViewModeRef.current = responseViewMode; }, [responseViewMode]);
 
-    // 修改：處理手機「返回鍵」邏輯 (最終完美修復版：先補票再詢問)
+    // 修改：處理手機「返回鍵」邏輯 (非同步 Confirm 版)
     useEffect(() => {
-        // 檢查是否有任何視窗開啟
         const isAnyModalOpen = showMenuModal || showAllNotesModal || showEditModal || showResponseModal;
 
         const handlePopState = (event) => {
             // === 第一關：未存檔攔截 ===
             if (hasUnsavedChangesRef.current) {
-                // 策略改變：立刻把歷史紀錄補回去！
-                // 這樣無論使用者接下來選什麼，我們都已經處於「安全狀態」，不會因為沒紀錄而退出 APP
-                window.history.pushState({ modalOpen: true }, "", window.location.href);
+                // 1. 動作發生瞬間，立刻補票 (確保 APP 不會退出)
+                // 使用 null 作為 URL 參數，避免某些瀏覽器重新載入頁面
+                window.history.pushState({ modalOpen: true }, "", null);
                 
-                // 然後才跳出詢問
-                if (confirm("編輯內容還未存檔，是否離開？")) {
-                    // 使用者選「確定」(離開)
-                    // 1. 清除未存檔標記，放行
-                    setHasUnsavedChanges(false);
-                    hasUnsavedChangesRef.current = false;
-                    
-                    // 2. 因為我們剛剛為了安全先 pushState 了一次，現在使用者真的要走了
-                    // 我們必須手動執行「後退」，這會再次觸發 popstate，但這次 hasUnsavedChanges 是 false
-                    // 所以會順利進入下面的關閉邏輯
-                    window.history.back();
-                } 
-                // 如果使用者選「取消」(留下來)
-                // 因為我們第一步已經 pushState 了，所以什麼都不用做，直接 return
-                // 狀態依然維持在 Modal 開啟且有歷史紀錄的狀態
+                // 2. 延遲詢問 (關鍵修正！)
+                // 使用 setTimeout 將 confirm 移出當前的事件迴圈
+                // 讓瀏覽器有時間先消化上面的 pushState，確認歷史紀錄已更新
+                setTimeout(() => {
+                    if (confirm("編輯內容還未存檔，是否離開？")) {
+                        // 使用者選「確定」(離開)
+                        setHasUnsavedChanges(false);
+                        hasUnsavedChangesRef.current = false;
+                        
+                        // 手動執行後退，這會再次觸發 popstate
+                        // 但這次 hasUnsavedChanges 是 false，所以會進入下方的關閉邏輯
+                        window.history.back();
+                    }
+                    // 如果選「取消」，什麼都不做，因為我們在 setTimeout 外面已經補票了
+                }, 10);
+                
                 return;
             }
 
             // === 第二關：回應視窗內導航 (編輯 -> 列表) ===
-            // 這裡也移除 setTimeout，直接同步執行，確保穩定
             if (showResponseModal && responseViewModeRef.current === 'edit') {
+                // 立刻補票 (保持在 Modal 內)
+                window.history.pushState({ modalOpen: true }, "", null);
                 setResponseViewMode('list');
-                // 我們依然在視窗內，必須補回紀錄
-                window.history.pushState({ modalOpen: true }, "", window.location.href);
                 return;
             }
 
             // === 第三關：正常關閉視窗 ===
             if (isAnyModalOpen) {
-                // 使用者意圖是關閉視窗，讓歷史紀錄自然消耗掉，回到主畫面
+                // 這裡不補票，讓歷史紀錄自然消耗掉 (回到上一頁 = 主畫面)
                 setShowMenuModal(false);
                 setShowAllNotesModal(false);
                 setShowEditModal(false);
@@ -786,9 +785,8 @@ function EchoScriptApp() {
             }
         };
 
-        // 當任何視窗「剛打開」時，建立第一道防線
         if (isAnyModalOpen) {
-            window.history.pushState({ modalOpen: true }, "", window.location.href);
+            window.history.pushState({ modalOpen: true }, "", null);
             window.addEventListener('popstate', handlePopState);
         }
 
@@ -1231,6 +1229,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

@@ -736,7 +736,7 @@ function EchoScriptApp() {
     useEffect(() => { hasUnsavedChangesRef.current = hasUnsavedChanges; }, [hasUnsavedChanges]);
     useEffect(() => { responseViewModeRef.current = responseViewMode; }, [responseViewMode]);
 
-    // 修改：處理手機「返回鍵」邏輯 (鐵壁防禦版)
+    // 修改：處理手機「返回鍵」邏輯 (最終完美修復版：先補票再詢問)
     useEffect(() => {
         // 檢查是否有任何視窗開啟
         const isAnyModalOpen = showMenuModal || showAllNotesModal || showEditModal || showResponseModal;
@@ -744,43 +744,40 @@ function EchoScriptApp() {
         const handlePopState = (event) => {
             // === 第一關：未存檔攔截 ===
             if (hasUnsavedChangesRef.current) {
-                // 跳出確認視窗 (這會暫停程式執行)
-                const stay = !confirm("編輯內容還未存檔，是否離開？");
+                // 策略改變：立刻把歷史紀錄補回去！
+                // 這樣無論使用者接下來選什麼，我們都已經處於「安全狀態」，不會因為沒紀錄而退出 APP
+                window.history.pushState({ modalOpen: true }, "", window.location.href);
                 
-                if (stay) {
-                    // 使用者選「取消」(留下來)
-                    // 關鍵：因為剛剛按了返回，歷史紀錄已經少了一筆，我們必須「補回去」
-                    // 使用 setTimeout 是為了避開瀏覽器處理 popstate 的瞬間衝突
-                    setTimeout(() => {
-                        window.history.pushState({ modalOpen: true }, "", window.location.href);
-                    }, 50);
-                    return; // 結束，什麼都不做，停在原畫面
-                } else {
+                // 然後才跳出詢問
+                if (confirm("編輯內容還未存檔，是否離開？")) {
                     // 使用者選「確定」(離開)
-                    // 我們手動更新 Ref，讓接下來的程式碼知道「現在可以關閉了」
-                    // 注意：這裡不只更新 state，也暫時欺騙一下當前的執行緒
+                    // 1. 清除未存檔標記，放行
                     setHasUnsavedChanges(false);
-                    hasUnsavedChangesRef.current = false; 
-                    // 程式繼續往下跑 -> 進入第二關或第三關
-                }
+                    hasUnsavedChangesRef.current = false;
+                    
+                    // 2. 因為我們剛剛為了安全先 pushState 了一次，現在使用者真的要走了
+                    // 我們必須手動執行「後退」，這會再次觸發 popstate，但這次 hasUnsavedChanges 是 false
+                    // 所以會順利進入下面的關閉邏輯
+                    window.history.back();
+                } 
+                // 如果使用者選「取消」(留下來)
+                // 因為我們第一步已經 pushState 了，所以什麼都不用做，直接 return
+                // 狀態依然維持在 Modal 開啟且有歷史紀錄的狀態
+                return;
             }
 
             // === 第二關：回應視窗內導航 (編輯 -> 列表) ===
-            // 注意：如果上面選了「確定離開」，這裡會接著執行，把畫面切回列表
+            // 這裡也移除 setTimeout，直接同步執行，確保穩定
             if (showResponseModal && responseViewModeRef.current === 'edit') {
                 setResponseViewMode('list');
-                // 關鍵：我們只是切換顯示模式，視窗還開著，所以必須「補回」歷史紀錄
-                // 否則再按一次返回就會直接關閉 APP
-                setTimeout(() => {
-                    window.history.pushState({ modalOpen: true }, "", window.location.href);
-                }, 50);
+                // 我們依然在視窗內，必須補回紀錄
+                window.history.pushState({ modalOpen: true }, "", window.location.href);
                 return;
             }
 
             // === 第三關：正常關閉視窗 ===
             if (isAnyModalOpen) {
-                // 使用者意圖是關閉視窗，所以我們不需要補 pushState
-                // 讓歷史紀錄自然消耗掉，回到主畫面
+                // 使用者意圖是關閉視窗，讓歷史紀錄自然消耗掉，回到主畫面
                 setShowMenuModal(false);
                 setShowAllNotesModal(false);
                 setShowEditModal(false);
@@ -1234,6 +1231,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

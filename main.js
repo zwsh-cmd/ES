@@ -736,11 +736,11 @@ function EchoScriptApp() {
     useEffect(() => { hasUnsavedChangesRef.current = hasUnsavedChanges; }, [hasUnsavedChanges]);
     useEffect(() => { responseViewModeRef.current = responseViewMode; }, [responseViewMode]);
 
-    // === 霸道防禦導航控制器 (先斬後奏版) ===
+    // === 無限疊加導航控制器 (UI 優先版) ===
 
-    // 1. 初始化與視窗狀態推入
+    // 1. 初始化與狀態推入
     useEffect(() => {
-        // Android 需要使用者互動才能操作 history，所以使用 click 觸發初始化
+        // 點擊後初始化防護網 (針對 Android 限制)
         const initGuard = () => {
             if (!window.history.state || window.history.state.page !== 'home') {
                 window.history.replaceState({ page: 'root' }, '', '');
@@ -750,7 +750,7 @@ function EchoScriptApp() {
         window.addEventListener('click', initGuard, { once: true });
         window.addEventListener('touchstart', initGuard, { once: true });
 
-        // 當任何視窗開啟時，推入一層歷史紀錄
+        // 當視窗開啟時，推入一層紀錄
         const isAnyModalOpen = showMenuModal || showAllNotesModal || showEditModal || showResponseModal;
         if (isAnyModalOpen) {
             window.history.pushState({ page: 'modal', time: Date.now() }, '', '');
@@ -762,46 +762,46 @@ function EchoScriptApp() {
         };
     }, [showMenuModal, showAllNotesModal, showEditModal, showResponseModal]);
 
-    // 2. 霸道返回監聽 (核心邏輯：先補票，再詢問)
+    // 2. 返回鍵監聽 (只進不退策略)
     useEffect(() => {
         const handlePopState = (event) => {
-            // === A. 未存檔保護 (無限迴圈鎖定) ===
+            // === A. 未存檔保護 (核心修改) ===
             if (hasUnsavedChangesRef.current) {
-                // 1. 【霸道補票】
-                // 偵測到返回動作，瀏覽器其實已經退回上一頁了。
-                // 我們立刻、馬上把它推回去！這樣不管使用者選什麼，他都已經被鎖在頁面裡了。
-                window.history.pushState({ page: 'modal_guard', time: Date.now() }, '', '');
+                // 1. 偵測到返回，立刻「往前」推一層，把你擋住
+                // 這樣歷史紀錄會變長，但使用者會感覺像留在原地
+                window.history.pushState({ page: 'modal_lock', time: Date.now() }, '', '');
 
-                // 2. 【延遲詢問】
-                // 使用 setTimeout 讓瀏覽器先消化剛剛的 pushState，然後才跳出詢問
-                setTimeout(() => {
-                    const leave = confirm("編輯內容還未存檔，是否離開？");
+                // 2. 顯示詢問
+                const leave = confirm("編輯內容還未存檔，是否離開？");
+
+                if (leave) {
+                    // 使用者選「離開」：
+                    // 我們不再嘗試操作 history.back() (因為容易算錯導致退出)
+                    // 我們直接「關閉 UI」，讓歷史紀錄就爛在堆疊裡也沒關係
+                    setHasUnsavedChanges(false);
+                    hasUnsavedChangesRef.current = false;
                     
-                    if (leave) {
-                        // 使用者堅持要走：
-                        setHasUnsavedChanges(false);
-                        hasUnsavedChangesRef.current = false;
-                        
-                        // 因為我們剛剛在第1步「多推了一層」來擋住他，所以現在要「退兩步」
-                        // (-1 是退掉 guard, -2 是退掉 modal 回到 home)
-                        window.history.go(-2);
-                    }
-                    // 如果使用者選「取消」：
-                    // 什麼都不用做！因為第1步已經把牆補好了。使用者現在位於 'modal_guard' 狀態。
-                    // 下次按返回，又會觸發這個迴圈。
-                }, 10);
-                
+                    // 強制關閉所有視窗
+                    setShowMenuModal(false);
+                    setShowAllNotesModal(false);
+                    setShowEditModal(false);
+                    setShowResponseModal(false);
+                    setResponseViewMode('list');
+                } 
+                // 使用者選「取消」：
+                // 什麼都不做，因為第1步已經把你鎖在新的歷史頁面了
                 return;
             }
 
-            // === B. 視窗內導航 (編輯模式 -> 列表) ===
+            // === B. 視窗內導航 (編輯 -> 列表) ===
             if (showResponseModal && responseViewModeRef.current === 'edit') {
                 setResponseViewMode('list');
                 window.history.pushState({ page: 'modal', time: Date.now() }, '', '');
                 return;
             }
 
-            // === C. 關閉視窗 (回到首頁) ===
+            // === C. 正常關閉視窗 ===
+            // 這裡不需要操作 history，因為瀏覽器已經退回去了，我們只要讓 UI 跟上
             const isAnyModalOpen = showMenuModal || showAllNotesModal || showEditModal || showResponseModal;
             if (isAnyModalOpen) {
                 setShowMenuModal(false);
@@ -809,21 +809,18 @@ function EchoScriptApp() {
                 setShowEditModal(false);
                 setShowResponseModal(false);
                 setResponseViewMode('list');
-                // 不需要操作 history，因為使用者按返回鍵時，瀏覽器已經自動退回 Home 了
                 return;
             }
 
             // === D. 首頁退出確認 ===
-            // 這裡也套用霸道邏輯：先補回去，再問
-            window.history.pushState({ page: 'home' }, '', '');
-            
-            setTimeout(() => {
-                if (confirm("是否退出程式？")) {
-                    // 真的要退，因為剛剛補了一步，所以要退兩步回到 root 之前 (即退出)
-                    window.history.go(-2);
-                }
-                // 取消的話，不用做事，因為已經補回去了
-            }, 10);
+            // 如果在首頁按返回 (瀏覽器退到了 root)
+            if (confirm("是否退出程式？")) {
+                // 使用者確認要走：這時候才真的執行後退 (退出)
+                window.history.back();
+            } else {
+                // 使用者反悔：把首頁補回去
+                window.history.pushState({ page: 'home' }, '', '');
+            }
         };
 
         window.addEventListener('popstate', handlePopState);
@@ -1264,6 +1261,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

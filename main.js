@@ -569,10 +569,10 @@ const AllNotesModal = ({ notes, onClose, onItemClick, onDelete, viewLevel, setVi
             setViewLevel('subcategories');
             setSelectedSubcategory(null);
         } 
-        // 從「次分類」層級返回「大分類」 <--- 這就是您要的邏輯
+        // 從「次分類」層級返回「大分類」 <--- 清空 Category，修復空白畫面問題
         else if (viewLevel === 'subcategories') {
             setViewLevel('categories');
-            setSelectedCategory(null);
+            setSelectedCategory(null); // 【關鍵修復】
         }
     };
 
@@ -637,7 +637,12 @@ const AllNotesModal = ({ notes, onClose, onItemClick, onDelete, viewLevel, setVi
                     <>
                         {/* Level 1: 大分類列表 */}
                         {viewLevel === 'categories' && categories.map(cat => (
-                            <div key={cat} onClick={() => { setSelectedCategory(cat); setViewLevel('subcategories'); }}
+                            <div key={cat} onClick={() => { 
+                                setSelectedCategory(cat); 
+                                setViewLevel('subcategories'); 
+                                // 【關鍵修復】 主動推入歷史紀錄，讓手機手勢返回時有正確的歷史堆疊
+                                window.history.pushState({ page: 'modal_notes_internal', time: Date.now() }, '', '');
+                            }}
                                  className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 mb-3 flex justify-between items-center cursor-pointer hover:border-stone-300 active:scale-[0.98] transition-transform">
                                 <span className="font-bold text-lg text-stone-800">{cat}</span>
                                 <IconBase d="M9 18l6-6-6-6" className="text-stone-300 w-5 h-5" />
@@ -646,7 +651,12 @@ const AllNotesModal = ({ notes, onClose, onItemClick, onDelete, viewLevel, setVi
 
                         {/* Level 2: 次分類列表 */}
                         {viewLevel === 'subcategories' && subcategories.map(sub => (
-                            <div key={sub} onClick={() => { setSelectedSubcategory(sub); setViewLevel('notes'); }}
+                            <div key={sub} onClick={() => { 
+                                setSelectedSubcategory(sub); 
+                                setViewLevel('notes'); 
+                                // 【關鍵修復】 主動推入歷史紀錄
+                                window.history.pushState({ page: 'modal_notes_internal', time: Date.now() }, '', '');
+                            }}
                                  className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 mb-3 flex justify-between items-center cursor-pointer hover:border-stone-300 active:scale-[0.98] transition-transform">
                                 <span className="font-medium text-lg text-stone-700">{sub}</span>
                                 <IconBase d="M9 18l6-6-6-6" className="text-stone-300 w-5 h-5" />
@@ -825,17 +835,23 @@ function EchoScriptApp() {
 
             // === C. 正常關閉視窗 (Modal -> Home) ===
             const isAnyModalOpen = showMenuModal || showAllNotesModal || showEditModal || showResponseModal;
-            if (isAnyModalOpen) {
-                
-                // [關鍵修復] 針對 AllNotesModal 進行內部導航處理
-                if (showAllNotesModal && allNotesViewLevel !== 'categories') {
-                    // 處於次分類或筆記層級，執行內部返回
+            
+            // 處理 AllNotesModal 的內部返回邏輯 (應優先於 Modal 關閉)
+            if (showAllNotesModal) {
+                // 如果當前 Modal 是開啟的，且層級不是最頂層 'categories'
+                if (allNotesViewLevel !== 'categories') {
+                    // 執行內部返回
                     setAllNotesViewLevel(allNotesViewLevel === 'notes' ? 'subcategories' : 'categories');
-                    // 視窗沒關，補回一頁，保持 Modal 開啟狀態
-                    window.history.pushState({ page: 'modal', time: Date.now() }, '', '');
+                    
+                    // 【關鍵修復】補回歷史紀錄，抵銷 PopState 帶來的後退效果
+                    // 確保 App 保持在 Modal 開啟狀態
+                    window.history.pushState({ page: 'modal_internal', time: Date.now() }, '', '');
                     return;
                 }
+            }
 
+            // 如果有任何 Modal 開啟 (且 AllNotesModal 不在內部導航層級了)
+            if (isAnyModalOpen) {
                 // 瀏覽器已經退回 Home 了，我們只需要讓 UI 消失
                 setShowMenuModal(false);
                 setShowAllNotesModal(false);
@@ -1306,6 +1322,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

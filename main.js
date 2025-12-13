@@ -566,7 +566,9 @@ const AllNotesModal = ({ notes, onClose, onItemClick, onDelete }) => {
         if (viewLevel === 'notes') {
             setViewLevel('subcategories');
             setSelectedSubcategory(null);
-        } else if (viewLevel === 'subcategories') {
+        } 
+        // [確認] 次分類返回大分類邏輯正確
+        else if (viewLevel === 'subcategories') {
             setViewLevel('categories');
             setSelectedCategory(null);
         }
@@ -1271,6 +1273,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

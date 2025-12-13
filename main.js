@@ -77,7 +77,7 @@ const MarkdownRenderer = ({ content }) => {
     };
 
     return (
-        <div className="text-base leading-loose text-stone-700 font-serif text-justify whitespace-pre-wrap">
+        <div className="text-base leading-loose text-stone-700 font-sans text-justify whitespace-pre-wrap">
             {content.split('\n').map((line, i) => {
                 if (line.startsWith('# ')) return <h1 key={i} className="text-xl font-bold mt-5 mb-3 text-stone-900">{parseInline(line.slice(2))}</h1>;
                 if (line.startsWith('## ')) return <h2 key={i} className="text-lg font-bold mt-4 mb-2 text-stone-600">{parseInline(line.slice(3))}</h2>;
@@ -1125,9 +1125,9 @@ function EchoScriptApp() {
                                 <div className="mb-6 border-b border-stone-100 pb-4">
                                     <div className="flex justify-between items-baseline mb-1">
                                         <h2 className="text-sm font-bold text-stone-400 tracking-widest uppercase">{currentNote.category || "未分類"}</h2>
-                                        <span className="text-xs text-stone-300 font-serif">#{currentNote.id.toString().slice(-3)}</span>
+                                        <span className="text-xs text-stone-300 font-sans">#{currentNote.id.toString().slice(-3)}</span>
                                     </div>
-                                    <h3 className="text-xl font-serif text-stone-600 italic">{currentNote.subcategory}</h3>
+                                    <h3 className="text-xl font-sans text-stone-600 italic">{currentNote.subcategory}</h3>
                                     
                                     {/* 日期顯示區 */}
                                     <div className="flex gap-3 mt-3 text-[10px] text-stone-400 font-mono border-t border-stone-100 pt-2 w-full">
@@ -1138,7 +1138,7 @@ function EchoScriptApp() {
                                 
                                 <div className="flex-1">
                                     <h1 className="text-2xl font-bold text-stone-900 mb-4">{currentNote.title}</h1>
-                                    <div className="text-lg leading-loose text-stone-700 font-serif text-justify whitespace-pre-wrap">
+                                    <div className="text-lg leading-loose text-stone-700 font-sans text-justify whitespace-pre-wrap">
                                         <MarkdownRenderer content={currentNote.content} />
                                     </div>
                                 </div>
@@ -1330,6 +1330,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

@@ -522,9 +522,10 @@ const ResponseModal = ({ note, responses = [], onClose, onSave, onDelete, viewMo
 };
 
 // === 6. 所有筆記列表 Modal (支援分類顯示) ===
-const AllNotesModal = ({ notes, onClose, onItemClick, onDelete }) => {
+// [修改] 接收外部控制的 viewLevel, setViewLevel
+const AllNotesModal = ({ notes, onClose, onItemClick, onDelete, viewLevel, setViewLevel }) => {
     // 狀態：目前顯示層級 ('categories' > 'subcategories' > 'notes')
-    const [viewLevel, setViewLevel] = useState('categories');
+    // const [viewLevel, setViewLevel] = useState('categories'); // 已提升至父元件
     const [selectedCategory, setSelectedCategory] = useState(null);
     const [selectedSubcategory, setSelectedSubcategory] = useState(null);
     const [searchTerm, setSearchTerm] = useState("");
@@ -733,6 +734,9 @@ function EchoScriptApp() {
     const [activeTab, setActiveTab] = useState('favorites');
     const [notification, setNotification] = useState(null);
 
+    // [新增] 儲存 AllNotesModal 的內部導航層級狀態，用於支援 PopState
+    const [allNotesViewLevel, setAllNotesViewLevel] = useState('categories'); // 'categories', 'subcategories', 'notes'
+
     const [touchStart, setTouchStart] = useState(null);
     const [touchCurrent, setTouchCurrent] = useState(null);
 
@@ -822,12 +826,23 @@ function EchoScriptApp() {
             // === C. 正常關閉視窗 (Modal -> Home) ===
             const isAnyModalOpen = showMenuModal || showAllNotesModal || showEditModal || showResponseModal;
             if (isAnyModalOpen) {
+                
+                // [關鍵修復] 針對 AllNotesModal 進行內部導航處理
+                if (showAllNotesModal && allNotesViewLevel !== 'categories') {
+                    // 處於次分類或筆記層級，執行內部返回
+                    setAllNotesViewLevel(allNotesViewLevel === 'notes' ? 'subcategories' : 'categories');
+                    // 視窗沒關，補回一頁，保持 Modal 開啟狀態
+                    window.history.pushState({ page: 'modal', time: Date.now() }, '', '');
+                    return;
+                }
+
                 // 瀏覽器已經退回 Home 了，我們只需要讓 UI 消失
                 setShowMenuModal(false);
                 setShowAllNotesModal(false);
                 setShowEditModal(false);
                 setShowResponseModal(false);
                 setResponseViewMode('list');
+                // AllNotesModal 關閉時，其狀態會在 App 的 render 區被重置
                 return;
             }
 
@@ -1246,16 +1261,24 @@ function EchoScriptApp() {
             {showAllNotesModal && (
                 <AllNotesModal 
                     notes={notes}
-                    onClose={() => setShowAllNotesModal(false)}
+                    // 關閉時重置狀態
+                    onClose={() => { 
+                        setShowAllNotesModal(false); 
+                        setAllNotesViewLevel('categories'); 
+                    }}
                     onItemClick={(item) => {
                         const idx = notes.findIndex(n => n.id === item.id);
                         if(idx !== -1) {
                             setCurrentIndex(idx);
                             setShowAllNotesModal(false);
+                            setAllNotesViewLevel('categories'); // 關閉時重置狀態
                             window.scrollTo(0,0);
                         }
                     }}
                     onDelete={handleDeleteNote}
+                    // 傳遞狀態與設定器
+                    viewLevel={allNotesViewLevel}
+                    setViewLevel={setAllNotesViewLevel}
                 />
             )}
 
@@ -1283,6 +1306,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

@@ -1162,7 +1162,7 @@ function EchoScriptApp() {
                     <div className={`transition-all duration-500 ${isAnimating ? 'opacity-0 translate-y-4' : 'opacity-100 translate-y-0'}`}>
                         {/* 主卡片區域 (包含內容與按鈕) */}
                         <div className="bg-white rounded-xl shadow-xl border border-stone-200 overflow-hidden relative min-h-[400px] flex flex-col">
-                            <div className="h-2 bg-stone-800 w-full"></div>
+                            
                             <div className="p-8 flex-1 flex flex-col">
                                 <div className="mb-6">
                                     <div className="flex justify-between items-baseline mb-2">
@@ -1375,6 +1375,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

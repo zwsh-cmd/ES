@@ -640,8 +640,6 @@ const AllNotesModal = ({ notes, onClose, onItemClick, onDelete, viewLevel, setVi
                             <div key={cat} onClick={() => { 
                                 setSelectedCategory(cat); 
                                 setViewLevel('subcategories'); 
-                                // 【關鍵修復】 主動推入歷史紀錄，讓手機手勢返回時有正確的歷史堆疊
-                                window.history.pushState({ page: 'modal_notes_internal', time: Date.now() }, '', '');
                             }}
                                  className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 mb-3 flex justify-between items-center cursor-pointer hover:border-stone-300 active:scale-[0.98] transition-transform">
                                 <span className="font-bold text-lg text-stone-800">{cat}</span>
@@ -654,8 +652,6 @@ const AllNotesModal = ({ notes, onClose, onItemClick, onDelete, viewLevel, setVi
                             <div key={sub} onClick={() => { 
                                 setSelectedSubcategory(sub); 
                                 setViewLevel('notes'); 
-                                // 【關鍵修復】 主動推入歷史紀錄
-                                window.history.pushState({ page: 'modal_notes_internal', time: Date.now() }, '', '');
                             }}
                                  className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 mb-3 flex justify-between items-center cursor-pointer hover:border-stone-300 active:scale-[0.98] transition-transform">
                                 <span className="font-medium text-lg text-stone-700">{sub}</span>
@@ -794,83 +790,64 @@ function EchoScriptApp() {
         const handlePopState = (event) => {
             // === A. 編輯中未存檔 (核心目標：留在這一頁) ===
             if (hasUnsavedChangesRef.current) {
-                // [關鍵動作] 瀏覽器剛剛退了一步，我們立刻「推」一步回去
-                // 這樣一退一進，使用者就會「留在原地」
-                // 狀態變成：... -> Home -> Modal (原本) -> Home (按返回) -> Modal_Trap (我們推的)
                 window.history.pushState({ page: 'modal_trap', time: Date.now() }, '', '');
-
-                // 稍微延遲顯示確認框，確保畫面已經穩住在「原地」
                 setTimeout(() => {
-                    const leave = confirm("編輯內容還未存檔，是否離開？");
-                    
-                    if (leave) {
-                        // 使用者選「離開」 (確定不存檔了)
+                    if (confirm("編輯內容還未存檔，是否離開？")) {
                         setHasUnsavedChanges(false);
                         hasUnsavedChangesRef.current = false;
-                        
-                        // [策略] 直接關閉 UI，不用管歷史紀錄
-                        // 因為我們剛剛推了一個 modal_trap，現在關掉視窗，使用者會看到首頁列表
-                        // 雖然歷史紀錄多了一層，但對使用者體驗沒影響 (不會閃退)
                         setShowMenuModal(false);
-                        setShowAllNotesModal(false);
+                        setShowAllNotesModal(false); // 關閉視窗
+                        setAllNotesViewLevel('categories'); // 【關鍵】重置層級，避免下次打開白畫面
                         setShowEditModal(false);
                         setShowResponseModal(false);
                         setResponseViewMode('list');
                     }
-                    // 使用者選「取消」 (要留下來)
-                    // [策略] 什麼都不用做！
-                    // 因為我們在第一行已經用 pushState 把使用者「釘」在這一頁了。
                 }, 10);
-                
                 return;
             }
 
             // === B. 視窗內導航 (編輯 -> 列表) ===
             if (showResponseModal && responseViewModeRef.current === 'edit') {
                 setResponseViewMode('list');
-                // 視窗沒關，補回一頁，保持 Modal 開啟狀態
                 window.history.pushState({ page: 'modal', time: Date.now() }, '', '');
                 return;
             }
 
-            // === C. 正常關閉視窗 (Modal -> Home) ===
-            const isAnyModalOpen = showMenuModal || showAllNotesModal || showEditModal || showResponseModal;
-            
-            // 處理 AllNotesModal 的內部返回邏輯 (應優先於 Modal 關閉)
+            // === C. AllNotesModal 的三層導航邏輯 (Title -> Sub -> Cat -> Home) ===
             if (showAllNotesModal) {
-                // 如果當前 Modal 是開啟的，且層級不是最頂層 'categories'
-                if (allNotesViewLevel !== 'categories') {
-                    // 執行內部返回
-                    setAllNotesViewLevel(allNotesViewLevel === 'notes' ? 'subcategories' : 'categories');
-                    
-                    // 【關鍵修復】補回歷史紀錄，抵銷 PopState 帶來的後退效果
-                    // 確保 App 保持在 Modal 開啟狀態
-                    window.history.pushState({ page: 'modal_internal', time: Date.now() }, '', '');
+                if (allNotesViewLevel === 'notes') {
+                    // 1. 從 筆記 返回 次分類
+                    setAllNotesViewLevel('subcategories');
+                    window.history.pushState({ page: 'modal_internal', time: Date.now() }, '', ''); // 補回一頁，保持視窗開啟
                     return;
                 }
-            }
-
-            // 如果有任何 Modal 開啟 (且 AllNotesModal 不在內部導航層級了)
-            if (isAnyModalOpen) {
-                // 瀏覽器已經退回 Home 了，我們只需要讓 UI 消失
-                setShowMenuModal(false);
+                if (allNotesViewLevel === 'subcategories') {
+                    // 2. 從 次分類 返回 大分類
+                    setAllNotesViewLevel('categories');
+                    window.history.pushState({ page: 'modal_internal', time: Date.now() }, '', ''); // 補回一頁，保持視窗開啟
+                    return;
+                }
+                // 3. 從 大分類 返回 首頁
+                // 這裡不需要 pushState，直接讓瀏覽器的 pop 發生，順勢關閉視窗
                 setShowAllNotesModal(false);
-                setShowEditModal(false);
-                setShowResponseModal(false);
-                setResponseViewMode('list');
-                // AllNotesModal 關閉時，其狀態會在 App 的 render 區被重置
+                setAllNotesViewLevel('categories'); // 【關鍵】重置層級，避免下次打開白畫面
                 return;
             }
 
-            // === D. 首頁退出 (Home -> Exit) ===
-            // 只有在首頁才會執行到這裡
-            // [策略] 先把自己釘在首頁，再問要不要走
+            // === D. 正常關閉其他視窗 (Modal -> Home) ===
+            const isAnyOtherModalOpen = showMenuModal || showEditModal || showResponseModal;
+            if (isAnyOtherModalOpen) {
+                setShowMenuModal(false);
+                setShowEditModal(false);
+                setShowResponseModal(false);
+                setResponseViewMode('list');
+                return;
+            }
+
+            // === E. 首頁退出 (Home -> Exit) ===
             window.history.pushState({ page: 'home' }, '', '');
-            
             setTimeout(() => {
                 if (confirm("是否退出程式？")) {
-                    // 只有這裡，我們才允許真正的「倒退」
-                    // 因為剛剛補了一步，所以要退兩步才能出去 (-2)
                     window.history.go(-2);
                 }
             }, 10);
@@ -878,7 +855,7 @@ function EchoScriptApp() {
 
         window.addEventListener('popstate', handlePopState);
         return () => window.removeEventListener('popstate', handlePopState);
-    }, [showMenuModal, showAllNotesModal, showEditModal, showResponseModal]);
+    }, [showMenuModal, showAllNotesModal, showEditModal, showResponseModal, allNotesViewLevel]); // 加入 allNotesViewLevel 依賴
     
     useEffect(() => {
         try {
@@ -1098,7 +1075,7 @@ function EchoScriptApp() {
                      <button onClick={() => { setIsCreatingNew(true); setShowEditModal(true); }} className="bg-white border border-stone-200 text-stone-600 p-2 rounded-full shadow-sm active:bg-stone-100" title="新增筆記">
                         <Plus className="w-5 h-5" />
                     </button>
-                    <button onClick={() => setShowAllNotesModal(true)} className="bg-white border border-stone-200 text-stone-600 p-2 rounded-full shadow-sm active:bg-stone-100" title="所有筆記">
+                    <button onClick={() => { setShowAllNotesModal(true); setAllNotesViewLevel('categories'); }} className="bg-white border border-stone-200 text-stone-600 p-2 rounded-full shadow-sm active:bg-stone-100" title="所有筆記">
                         <List className="w-5 h-5" />
                     </button>
                     <button onClick={handleNextNote} disabled={isAnimating || notes.length <= 1} className="bg-stone-800 text-stone-50 px-4 py-2 rounded-full text-xs font-bold shadow-lg shadow-stone-300 active:scale-95 transition-transform flex items-center gap-2">
@@ -1322,6 +1299,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

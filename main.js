@@ -770,20 +770,23 @@ function EchoScriptApp() {
     // 1. 基礎防護網 (點擊後啟動)
     useEffect(() => {
         const initGuard = () => {
-            // 確保歷史紀錄至少有兩層，讓我們有空間可以「退後再前進」
             if (!window.history.state || window.history.state.page !== 'home') {
                 window.history.replaceState({ page: 'root' }, '', '');
                 window.history.pushState({ page: 'home' }, '', '');
             }
         };
-        // Android 需要手指互動才能操作 History
         window.addEventListener('click', initGuard, { once: true });
         window.addEventListener('touchstart', initGuard, { once: true });
 
-        // 開啟視窗時，推入一層紀錄 (建立初始狀態)
+        // 開啟視窗時，推入一層紀錄
         const isAnyModalOpen = showMenuModal || showAllNotesModal || showEditModal || showResponseModal;
         if (isAnyModalOpen) {
-            window.history.pushState({ page: 'modal', time: Date.now() }, '', '');
+            // [優化] 為 AllNotesModal 建立明確的歷史層級 'categories'
+            // 這樣在返回時，我們就能識別這是「分類層」，而不是模糊的 modal 狀態
+            const state = showAllNotesModal 
+                ? { page: 'modal', level: 'categories', time: Date.now() }
+                : { page: 'modal', time: Date.now() };
+            window.history.pushState(state, '', '');
         }
 
         return () => {
@@ -792,10 +795,10 @@ function EchoScriptApp() {
         };
     }, [showMenuModal, showAllNotesModal, showEditModal, showResponseModal]);
 
-    // 2. 攔截返回鍵 (核心：抵銷退後動作)
+    // 2. 攔截返回鍵 (核心：真實歷史堆疊 + 狀態同步)
     useEffect(() => {
         const handlePopState = (event) => {
-            // === A. 編輯中未存檔 (這是唯一需要 "Trap" 攔截的情況) ===
+            // === A. 編輯中未存檔 ===
             if (hasUnsavedChangesRef.current) {
                 setTimeout(() => window.history.pushState({ page: 'modal_trap', time: Date.now() }, '', ''), 0);
                 setTimeout(() => {
@@ -820,35 +823,49 @@ function EchoScriptApp() {
                 return;
             }
 
-            // === C. AllNotesModal 的三層導航邏輯 (使用真實歷史堆疊同步) ===
-            // [關鍵修復] 不再手動 pushState，而是根據退回後的 event.state 來決定顯示哪一層
+            // === C. AllNotesModal 的三層導航邏輯 ===
             if (showAllNotesModal) {
                 const destState = event.state || {};
-                
-                // 1. 如果歷史紀錄說我們在 notes 層級
+                const currentLevel = allNotesViewLevelRef.current; // 取得當前層級 (防呆用)
+
+                // 1. 如果歷史紀錄明確指示要去的層級
                 if (destState.level === 'notes') {
                     setAllNotesViewLevel('notes');
                     return;
                 }
-                // 2. 如果歷史紀錄說我們在 subcategories 層級
                 if (destState.level === 'subcategories') {
                     setAllNotesViewLevel('subcategories');
                     return;
                 }
-                // 3. 如果歷史紀錄是 modal 基礎層 (categories)，或退回到了 home
-                // 注意：如果 destState.page === 'home'，代表使用者已經退出了分類選單
+                // 明確回到分類層
+                if (destState.level === 'categories') {
+                    setAllNotesViewLevel('categories');
+                    return;
+                }
+
+                // 2. 如果歷史紀錄說要回到 Home
                 if (destState.page === 'home') {
+                    // [關鍵修復/防呆] 如果當前還在次分類/筆記，卻不小心直接退回 Home (可能因中間層遺失)
+                    // 我們強制顯示「大分類」並保持視窗開啟，讓使用者覺得是「返回上一層」
+                    if (currentLevel !== 'categories') {
+                        setAllNotesViewLevel('categories');
+                        // 這裡不需 pushState，暫時停在 Home 的歷史點上顯示分類列表
+                        // 下一次按返回就會真的退出了，這符合使用者預期
+                        return;
+                    }
+                    
+                    // 只有當我們已經在 categories 層級時，才真正關閉視窗
                     setShowAllNotesModal(false);
                     setAllNotesViewLevel('categories');
                     return;
                 }
                 
-                // 4. 其他情況 (例如回到 modal 初始狀態) -> 顯示大分類
+                // 3. Fallback: 其他未定義狀態，預設回到大分類
                 setAllNotesViewLevel('categories');
                 return;
             }
 
-            // === D. 正常關閉其他視窗 (Modal -> Home) ===
+            // === D. 正常關閉其他視窗 ===
             const isAnyOtherModalOpen = showMenuModal || showEditModal || showResponseModal;
             if (isAnyOtherModalOpen) {
                 setShowMenuModal(false);
@@ -858,7 +875,7 @@ function EchoScriptApp() {
                 return;
             }
 
-            // === E. 首頁退出 (Home -> Exit) ===
+            // === E. 首頁退出 ===
             setTimeout(() => window.history.pushState({ page: 'home' }, '', ''), 0);
             setTimeout(() => {
                 if (confirm("是否退出程式？")) {
@@ -1313,6 +1330,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

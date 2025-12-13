@@ -1164,7 +1164,7 @@ function EchoScriptApp() {
                         <div className="bg-white rounded-xl shadow-xl border border-stone-200 overflow-hidden relative min-h-[400px] flex flex-col">
                             
                             <div className="p-8 flex-1 flex flex-col">
-                                <div className="mb-6">
+                                <div className="mb-2">
                                     <div className="flex justify-between items-baseline mb-2">
                                         <div className="flex items-baseline gap-2 text-sm font-bold text-stone-400 tracking-widest uppercase">
                                             <h2>{currentNote.category || "未分類"}</h2>
@@ -1173,16 +1173,17 @@ function EchoScriptApp() {
                                         </div>
                                         <span className="text-xs text-stone-300 font-sans">#{currentNote.id.toString().slice(-3)}</span>
                                     </div>
-                                    
-                                    {/* 日期顯示區 */}
-                                    <div className="flex gap-3 mt-3 text-[10px] text-stone-400 font-mono border-y border-stone-100 py-2 w-full">
-                                        <span>📅 新增: {currentNote.createdDate ? new Date(currentNote.createdDate).toLocaleDateString() : '預設資料'}</span>
-                                        <span>📝 修改: {currentNote.modifiedDate ? new Date(currentNote.modifiedDate).toLocaleDateString() : (currentNote.createdDate ? new Date(currentNote.createdDate).toLocaleDateString() : '預設資料')}</span>
-                                    </div>
                                 </div>
                                 
                                 <div className="flex-1">
                                     <h1 className="text-2xl font-bold text-stone-900 mb-4">{currentNote.title}</h1>
+                                    
+                                    {/* 日期顯示區 - 移至主旨語下方 */}
+                                    <div className="flex gap-3 mb-6 text-[10px] text-stone-400 font-mono border-y border-stone-100 py-2 w-full">
+                                        <span>📅 新增: {currentNote.createdDate ? new Date(currentNote.createdDate).toLocaleDateString() : '預設資料'}</span>
+                                        <span>📝 修改: {currentNote.modifiedDate ? new Date(currentNote.modifiedDate).toLocaleDateString() : (currentNote.createdDate ? new Date(currentNote.createdDate).toLocaleDateString() : '預設資料')}</span>
+                                    </div>
+
                                     <div className="text-lg leading-loose text-stone-700 font-sans text-justify whitespace-pre-wrap">
                                         <MarkdownRenderer content={currentNote.content} />
                                     </div>
@@ -1375,6 +1376,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

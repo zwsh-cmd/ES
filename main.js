@@ -77,10 +77,10 @@ const MarkdownRenderer = ({ content }) => {
     };
 
     return (
-        <div className="text-lg leading-loose text-stone-700 font-serif text-justify whitespace-pre-wrap">
+        <div className="text-base leading-loose text-stone-700 font-serif text-justify whitespace-pre-wrap">
             {content.split('\n').map((line, i) => {
-                if (line.startsWith('# ')) return <h1 key={i} className="text-2xl font-bold mt-5 mb-3 text-stone-900">{parseInline(line.slice(2))}</h1>;
-                if (line.startsWith('## ')) return <h2 key={i} className="text-xl font-bold mt-4 mb-2 text-stone-600">{parseInline(line.slice(3))}</h2>;
+                if (line.startsWith('# ')) return <h1 key={i} className="text-xl font-bold mt-5 mb-3 text-stone-900">{parseInline(line.slice(2))}</h1>;
+                if (line.startsWith('## ')) return <h2 key={i} className="text-lg font-bold mt-4 mb-2 text-stone-600">{parseInline(line.slice(3))}</h2>;
                 if (line.startsWith('> ')) return <blockquote key={i} className="border-l-4 border-stone-300 pl-4 italic text-stone-500 my-2">{parseInline(line.slice(2))}</blockquote>;
                 return <p key={i} className="mb-2 min-h-[1em]">{parseInline(line)}</p>;
             })}
@@ -1330,6 +1330,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

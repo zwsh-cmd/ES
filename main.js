@@ -640,6 +640,8 @@ const AllNotesModal = ({ notes, onClose, onItemClick, onDelete, viewLevel, setVi
                             <div key={cat} onClick={() => { 
                                 setSelectedCategory(cat); 
                                 setViewLevel('subcategories'); 
+                                // [關鍵修改] 建立真實歷史紀錄：標記 level 為 subcategories
+                                window.history.pushState({ page: 'modal', level: 'subcategories', time: Date.now() }, '', '');
                             }}
                                  className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 mb-3 flex justify-between items-center cursor-pointer hover:border-stone-300 active:scale-[0.98] transition-transform">
                                 <span className="font-bold text-lg text-stone-800">{cat}</span>
@@ -652,6 +654,8 @@ const AllNotesModal = ({ notes, onClose, onItemClick, onDelete, viewLevel, setVi
                             <div key={sub} onClick={() => { 
                                 setSelectedSubcategory(sub); 
                                 setViewLevel('notes'); 
+                                // [關鍵修改] 建立真實歷史紀錄：標記 level 為 notes
+                                window.history.pushState({ page: 'modal', level: 'notes', time: Date.now() }, '', '');
                             }}
                                  className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 mb-3 flex justify-between items-center cursor-pointer hover:border-stone-300 active:scale-[0.98] transition-transform">
                                 <span className="font-medium text-lg text-stone-700">{sub}</span>
@@ -791,9 +795,8 @@ function EchoScriptApp() {
     // 2. 攔截返回鍵 (核心：抵銷退後動作)
     useEffect(() => {
         const handlePopState = (event) => {
-            // === A. 編輯中未存檔 (核心目標：留在這一頁) ===
+            // === A. 編輯中未存檔 (這是唯一需要 "Trap" 攔截的情況) ===
             if (hasUnsavedChangesRef.current) {
-                // 使用 setTimeout 確保 pushState 在 pop 動作完成後執行
                 setTimeout(() => window.history.pushState({ page: 'modal_trap', time: Date.now() }, '', ''), 0);
                 setTimeout(() => {
                     if (confirm("編輯內容還未存檔，是否離開？")) {
@@ -817,27 +820,30 @@ function EchoScriptApp() {
                 return;
             }
 
-            // === C. AllNotesModal 的三層導航邏輯 (Title -> Sub -> Cat -> Home) ===
+            // === C. AllNotesModal 的三層導航邏輯 (使用真實歷史堆疊同步) ===
+            // [關鍵修復] 不再手動 pushState，而是根據退回後的 event.state 來決定顯示哪一層
             if (showAllNotesModal) {
-                const currentLevel = allNotesViewLevelRef.current;
-
-                if (currentLevel === 'notes') {
-                    // 1. 從 筆記 返回 次分類
-                    setAllNotesViewLevel('subcategories');
-                    // [修復] 使用 setTimeout 確保歷史堆疊正確推入，防止連續返回時失效
-                    setTimeout(() => window.history.pushState({ page: 'modal_internal_sub', time: Date.now() }, '', ''), 0);
+                const destState = event.state || {};
+                
+                // 1. 如果歷史紀錄說我們在 notes 層級
+                if (destState.level === 'notes') {
+                    setAllNotesViewLevel('notes');
                     return;
                 }
-                if (currentLevel === 'subcategories') {
-                    // 2. 從 次分類 返回 大分類
+                // 2. 如果歷史紀錄說我們在 subcategories 層級
+                if (destState.level === 'subcategories') {
+                    setAllNotesViewLevel('subcategories');
+                    return;
+                }
+                // 3. 如果歷史紀錄是 modal 基礎層 (categories)，或退回到了 home
+                // 注意：如果 destState.page === 'home'，代表使用者已經退出了分類選單
+                if (destState.page === 'home') {
+                    setShowAllNotesModal(false);
                     setAllNotesViewLevel('categories');
-                    // [修復] 使用 setTimeout 確保歷史堆疊正確推入
-                    setTimeout(() => window.history.pushState({ page: 'modal_internal_cat', time: Date.now() }, '', ''), 0);
                     return;
                 }
                 
-                // 3. 從 大分類 返回 首頁 (不需要 pushState，直接讓 Modal 關閉即可)
-                setShowAllNotesModal(false);
+                // 4. 其他情況 (例如回到 modal 初始狀態) -> 顯示大分類
                 setAllNotesViewLevel('categories');
                 return;
             }
@@ -853,7 +859,6 @@ function EchoScriptApp() {
             }
 
             // === E. 首頁退出 (Home -> Exit) ===
-            // 為了防止誤觸，我們也先把狀態推回去，再詢問
             setTimeout(() => window.history.pushState({ page: 'home' }, '', ''), 0);
             setTimeout(() => {
                 if (confirm("是否退出程式？")) {
@@ -1308,6 +1313,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

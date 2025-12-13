@@ -1122,7 +1122,7 @@ function EchoScriptApp() {
                         <div className="bg-white rounded-xl shadow-xl border border-stone-200 overflow-hidden relative min-h-[400px] flex flex-col">
                             <div className="h-2 bg-stone-800 w-full"></div>
                             <div className="p-8 flex-1 flex flex-col">
-                                <div className="mb-6 border-b border-stone-100 pb-4">
+                                <div className="mb-6">
                                     <div className="flex justify-between items-baseline mb-2">
                                         <div className="flex items-baseline gap-2 text-sm font-bold text-stone-400 tracking-widest uppercase">
                                             <h2>{currentNote.category || "未分類"}</h2>
@@ -1133,7 +1133,7 @@ function EchoScriptApp() {
                                     </div>
                                     
                                     {/* 日期顯示區 */}
-                                    <div className="flex gap-3 mt-2 text-[10px] text-stone-400 font-mono border-t border-stone-100 pt-2 w-full">
+                                    <div className="flex gap-3 mt-3 text-[10px] text-stone-400 font-mono border-y border-stone-100 py-2 w-full">
                                         <span>📅 新增: {currentNote.createdDate ? new Date(currentNote.createdDate).toLocaleDateString() : '預設資料'}</span>
                                         <span>📝 修改: {currentNote.modifiedDate ? new Date(currentNote.modifiedDate).toLocaleDateString() : (currentNote.createdDate ? new Date(currentNote.createdDate).toLocaleDateString() : '預設資料')}</span>
                                     </div>
@@ -1333,6 +1333,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

@@ -793,7 +793,8 @@ function EchoScriptApp() {
         const handlePopState = (event) => {
             // === A. 編輯中未存檔 (核心目標：留在這一頁) ===
             if (hasUnsavedChangesRef.current) {
-                window.history.pushState({ page: 'modal_trap', time: Date.now() }, '', '');
+                // 使用 setTimeout 確保 pushState 在 pop 動作完成後執行
+                setTimeout(() => window.history.pushState({ page: 'modal_trap', time: Date.now() }, '', ''), 0);
                 setTimeout(() => {
                     if (confirm("編輯內容還未存檔，是否離開？")) {
                         setHasUnsavedChanges(false);
@@ -805,35 +806,37 @@ function EchoScriptApp() {
                         setShowResponseModal(false);
                         setResponseViewMode('list');
                     }
-                }, 10);
+                }, 20);
                 return;
             }
 
             // === B. 視窗內導航 (編輯 -> 列表) ===
             if (showResponseModal && responseViewModeRef.current === 'edit') {
                 setResponseViewMode('list');
-                window.history.pushState({ page: 'modal', time: Date.now() }, '', '');
+                setTimeout(() => window.history.pushState({ page: 'modal', time: Date.now() }, '', ''), 0);
                 return;
             }
 
             // === C. AllNotesModal 的三層導航邏輯 (Title -> Sub -> Cat -> Home) ===
             if (showAllNotesModal) {
-                // 使用 Ref 確保在 Closure 中取得的是最新狀態
                 const currentLevel = allNotesViewLevelRef.current;
 
                 if (currentLevel === 'notes') {
                     // 1. 從 筆記 返回 次分類
                     setAllNotesViewLevel('subcategories');
-                    window.history.pushState({ page: 'modal_internal', time: Date.now() }, '', ''); 
+                    // [修復] 使用 setTimeout 確保歷史堆疊正確推入，防止連續返回時失效
+                    setTimeout(() => window.history.pushState({ page: 'modal_internal_sub', time: Date.now() }, '', ''), 0);
                     return;
                 }
                 if (currentLevel === 'subcategories') {
                     // 2. 從 次分類 返回 大分類
                     setAllNotesViewLevel('categories');
-                    window.history.pushState({ page: 'modal_internal', time: Date.now() }, '', ''); 
+                    // [修復] 使用 setTimeout 確保歷史堆疊正確推入
+                    setTimeout(() => window.history.pushState({ page: 'modal_internal_cat', time: Date.now() }, '', ''), 0);
                     return;
                 }
-                // 3. 從 大分類 返回 首頁
+                
+                // 3. 從 大分類 返回 首頁 (不需要 pushState，直接讓 Modal 關閉即可)
                 setShowAllNotesModal(false);
                 setAllNotesViewLevel('categories');
                 return;
@@ -850,17 +853,18 @@ function EchoScriptApp() {
             }
 
             // === E. 首頁退出 (Home -> Exit) ===
-            window.history.pushState({ page: 'home' }, '', '');
+            // 為了防止誤觸，我們也先把狀態推回去，再詢問
+            setTimeout(() => window.history.pushState({ page: 'home' }, '', ''), 0);
             setTimeout(() => {
                 if (confirm("是否退出程式？")) {
                     window.history.go(-2);
                 }
-            }, 10);
+            }, 20);
         };
 
         window.addEventListener('popstate', handlePopState);
         return () => window.removeEventListener('popstate', handlePopState);
-    }, [showMenuModal, showAllNotesModal, showEditModal, showResponseModal]); // 注意：移除了 allNotesViewLevel
+    }, [showMenuModal, showAllNotesModal, showEditModal, showResponseModal]);
     
     useEffect(() => {
         try {
@@ -1304,6 +1308,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

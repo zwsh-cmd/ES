@@ -563,11 +563,12 @@ const AllNotesModal = ({ notes, onClose, onItemClick, onDelete }) => {
 
     // 返回上一層邏輯
     const handleBack = () => {
+        // 從「筆記」層級返回「次分類」
         if (viewLevel === 'notes') {
             setViewLevel('subcategories');
             setSelectedSubcategory(null);
         } 
-        // [確認] 次分類返回大分類邏輯正確
+        // 從「次分類」層級返回「大分類」 <--- 這就是您要的邏輯
         else if (viewLevel === 'subcategories') {
             setViewLevel('categories');
             setSelectedCategory(null);
@@ -1273,6 +1274,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

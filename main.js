@@ -31,6 +31,8 @@ const Heading1 = (props) => <IconBase d={["M4 12h8", "M4 18V6", "M12 18V6", "M15
 const Heading2 = (props) => <IconBase d={["M4 12h8", "M4 18V6", "M12 18V6", "M21 18h-4c0-4 4-3 4-6 0-1.5-2-2.5-4-1"]} {...props} />;
 const Type = (props) => <IconBase d={["M4 7V4h16v3", "M9 20h6", "M12 4v16"]} {...props} />;
 const Quote = (props) => <IconBase d={["M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V20c0 1 0 1 1 1z", "M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V20c0 1 0 1 1 1z"]} {...props} />;
+const Italic = (props) => <IconBase d={["M19 4h-9", "M14 20H5", "M15 4L9 20"]} {...props} />;
+const Underline = (props) => <IconBase d={["M6 3v7a6 6 0 0 0 6 6 6 6 0 0 0 6-6V3", "M4 21h16"]} {...props} />;
 
 
 // === 2. 初始編劇筆記資料庫 (確保有完整分類) ===
@@ -64,13 +66,20 @@ class ErrorBoundary extends React.Component {
 // === 新增：Markdown 渲染器元件 (顯示預覽用) ===
 const MarkdownRenderer = ({ content }) => {
     const parseInline = (text) => {
-        const parts = text.split(/(\*\*.*?\*\*|~~.*?~~)/g);
+        // 新增支援 *斜體* 與 <u>底線</u>
+        const parts = text.split(/(\*\*.*?\*\*|~~.*?~~|\*.*?\*|<u>.*?<\/u>)/g);
         return parts.map((part, index) => {
             if (part.startsWith('**') && part.endsWith('**')) {
                 return <strong key={index} className="text-stone-900 font-extrabold">{part.slice(2, -2)}</strong>;
             }
             if (part.startsWith('~~') && part.endsWith('~~')) {
                 return <del key={index} className="text-stone-400">{part.slice(2, -2)}</del>;
+            }
+            if (part.startsWith('*') && part.endsWith('*')) {
+                return <em key={index} className="italic text-stone-600">{part.slice(1, -1)}</em>;
+            }
+            if (part.startsWith('<u>') && part.endsWith('</u>')) {
+                return <u key={index} className="underline decoration-stone-400 underline-offset-4">{part.slice(3, -4)}</u>;
             }
             return part;
         });
@@ -166,14 +175,20 @@ const HighlightingEditor = ({ value, onChange, textareaRef }) => {
                 className += "text-gray-800"; // 一般文字顏色
             }
 
-            // 簡單處理行內的粗體 (將 **text** 包在 span 裡)
-            const parts = content.split(/(\*\*.*?\*\*|~~.*?~~)/g);
+            // 處理行內樣式：粗體、刪除線、斜體、底線
+            const parts = content.split(/(\*\*.*?\*\*|~~.*?~~|\*.*?\*|<u>.*?<\/u>)/g);
             const renderedLine = parts.map((part, idx) => {
                 if (part.startsWith('**') && part.endsWith('**')) {
                     return <span key={idx} className="font-bold text-stone-900 bg-yellow-100/50 rounded px-0.5">{part}</span>;
                 }
                 if (part.startsWith('~~') && part.endsWith('~~')) {
                     return <span key={idx} className="line-through text-stone-400">{part}</span>;
+                }
+                if (part.startsWith('*') && part.endsWith('*')) {
+                    return <span key={idx} className="italic text-stone-600 bg-stone-100/50">{part}</span>;
+                }
+                if (part.startsWith('<u>') && part.endsWith('</u>')) {
+                    return <span key={idx} className="underline decoration-stone-300">{part}</span>;
                 }
                 return part;
             });
@@ -270,22 +285,37 @@ const MarkdownEditorModal = ({ note, existingNotes = [], isNew = false, onClose,
         let newText = "";
         let newCursorPos = 0;
 
-        if (syntax === "bold") {
+        // 處理包圍型語法 (粗體、斜體、底線)
+        if (["bold", "italic", "underline"].includes(syntax)) {
             const selectedText = text.substring(start, end);
-            newText = text.substring(0, start) + "**" + selectedText + "**" + text.substring(end);
-            newCursorPos = end + 4; 
-        } else {
+            let symbol = "";
+            let offset = 0;
+
+            if (syntax === "bold") { symbol = "**"; offset = 2; }
+            if (syntax === "italic") { symbol = "*"; offset = 1; }
+            if (syntax === "underline") { symbol = "<u>"; offset = 3; } // 結束符號需另外處理
+
+            const endSymbol = syntax === "underline" ? "</u>" : symbol;
+            
+            newText = text.substring(0, start) + symbol + selectedText + endSymbol + text.substring(end);
+            newCursorPos = end + symbol.length + endSymbol.length; 
+            if (selectedText.length === 0) newCursorPos -= endSymbol.length; // 如果沒選字，游標停在中間
+        } 
+        // 處理行首前綴語法 (標題、引用、清單)
+        else {
             const lineStart = text.lastIndexOf('\n', start - 1) + 1;
             let lineEnd = text.indexOf('\n', start);
             if (lineEnd === -1) lineEnd = text.length; 
 
             const lineContent = text.substring(lineStart, lineEnd);
-            const cleanContent = lineContent.replace(/^(\#+\s|>\s)/, '');
+            // 移除舊的前綴 (包含清單符號)
+            const cleanContent = lineContent.replace(/^(\#+\s|>\s|-\s)/, '');
 
             let prefix = "";
             if (syntax === "h1") prefix = "# ";
             if (syntax === "h2") prefix = "## ";
             if (syntax === "quote") prefix = "> ";
+            if (syntax === "list") prefix = "- ";
 
             newText = text.substring(0, lineStart) + prefix + cleanContent + text.substring(lineEnd);
             newCursorPos = lineStart + prefix.length + cleanContent.length;
@@ -369,7 +399,10 @@ const MarkdownEditorModal = ({ note, existingNotes = [], isNew = false, onClose,
                             <button onClick={() => insertMarkdown('h1')} className="p-2 hover:bg-stone-100 rounded text-stone-600 flex items-center gap-1 text-xs font-bold min-w-fit" title="大標"><Heading1 className="w-5 h-5"/> 大標</button>
                             <button onClick={() => insertMarkdown('h2')} className="p-2 hover:bg-stone-100 rounded text-stone-600 flex items-center gap-1 text-xs font-bold min-w-fit" title="小標"><Heading2 className="w-5 h-5"/> 小標</button>
                             <button onClick={() => insertMarkdown('bold')} className="p-2 hover:bg-stone-100 rounded text-stone-600 flex items-center gap-1 text-xs font-bold min-w-fit" title="粗體"><Bold className="w-4 h-4"/> 粗體</button>
+                            <button onClick={() => insertMarkdown('italic')} className="p-2 hover:bg-stone-100 rounded text-stone-600 flex items-center gap-1 text-xs font-bold min-w-fit" title="斜體"><Italic className="w-4 h-4"/> 斜體</button>
+                            <button onClick={() => insertMarkdown('underline')} className="p-2 hover:bg-stone-100 rounded text-stone-600 flex items-center gap-1 text-xs font-bold min-w-fit" title="底線"><Underline className="w-4 h-4"/> 底線</button>
                             <button onClick={() => insertMarkdown('quote')} className="p-2 hover:bg-stone-100 rounded text-stone-600 flex items-center gap-1 text-xs font-bold min-w-fit" title="引用"><Quote className="w-4 h-4"/> 引用</button>
+                            <button onClick={() => insertMarkdown('list')} className="p-2 hover:bg-stone-100 rounded text-stone-600 flex items-center gap-1 text-xs font-bold min-w-fit" title="項目"><List className="w-4 h-4"/> 項目</button>
                         </div>
                         <div className="flex gap-1 text-xs font-bold shrink-0 ml-2">
                              <button onClick={() => setActiveTab('write')} className={`px-2 py-1 rounded ${activeTab === 'write' ? 'bg-stone-200 text-stone-800' : 'text-stone-400'}`}>編輯</button>
@@ -1333,6 +1366,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

@@ -1140,9 +1140,7 @@ function EchoScriptApp() {
         <div className="min-h-screen bg-stone-50 text-stone-800 font-sans pb-20">
             <nav className="sticky top-0 z-30 bg-stone-50/90 backdrop-blur-md px-6 py-4 flex justify-between items-center border-b border-stone-200/50">
                 <div className="flex items-center gap-2">
-                    <div className="bg-stone-800 text-white p-1 rounded-lg">
-                        <FileText className="w-5 h-5" />
-                    </div>
+                    <img src="icon.png" className="w-8 h-8 rounded-lg object-cover" alt="App Icon" />
                     <h1 className="text-lg font-bold tracking-tight text-stone-800">EchoScript</h1>
                 </div>
                 <div className="flex gap-2">
@@ -1377,6 +1375,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

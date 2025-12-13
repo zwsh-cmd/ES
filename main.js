@@ -742,6 +742,9 @@ function EchoScriptApp() {
 
     // [新增] 儲存 AllNotesModal 的內部導航層級狀態，用於支援 PopState
     const [allNotesViewLevel, setAllNotesViewLevel] = useState('categories'); // 'categories', 'subcategories', 'notes'
+    // 新增 Ref 以解決 EventListener 閉包狀態不同步導致的導航錯誤
+    const allNotesViewLevelRef = useRef(allNotesViewLevel);
+    useEffect(() => { allNotesViewLevelRef.current = allNotesViewLevel; }, [allNotesViewLevel]);
 
     const [touchStart, setTouchStart] = useState(null);
     const [touchCurrent, setTouchCurrent] = useState(null);
@@ -796,8 +799,8 @@ function EchoScriptApp() {
                         setHasUnsavedChanges(false);
                         hasUnsavedChangesRef.current = false;
                         setShowMenuModal(false);
-                        setShowAllNotesModal(false); // 關閉視窗
-                        setAllNotesViewLevel('categories'); // 【關鍵】重置層級，避免下次打開白畫面
+                        setShowAllNotesModal(false);
+                        setAllNotesViewLevel('categories');
                         setShowEditModal(false);
                         setShowResponseModal(false);
                         setResponseViewMode('list');
@@ -815,22 +818,24 @@ function EchoScriptApp() {
 
             // === C. AllNotesModal 的三層導航邏輯 (Title -> Sub -> Cat -> Home) ===
             if (showAllNotesModal) {
-                if (allNotesViewLevel === 'notes') {
+                // 使用 Ref 確保在 Closure 中取得的是最新狀態
+                const currentLevel = allNotesViewLevelRef.current;
+
+                if (currentLevel === 'notes') {
                     // 1. 從 筆記 返回 次分類
                     setAllNotesViewLevel('subcategories');
-                    window.history.pushState({ page: 'modal_internal', time: Date.now() }, '', ''); // 補回一頁，保持視窗開啟
+                    window.history.pushState({ page: 'modal_internal', time: Date.now() }, '', ''); 
                     return;
                 }
-                if (allNotesViewLevel === 'subcategories') {
+                if (currentLevel === 'subcategories') {
                     // 2. 從 次分類 返回 大分類
                     setAllNotesViewLevel('categories');
-                    window.history.pushState({ page: 'modal_internal', time: Date.now() }, '', ''); // 補回一頁，保持視窗開啟
+                    window.history.pushState({ page: 'modal_internal', time: Date.now() }, '', ''); 
                     return;
                 }
                 // 3. 從 大分類 返回 首頁
-                // 這裡不需要 pushState，直接讓瀏覽器的 pop 發生，順勢關閉視窗
                 setShowAllNotesModal(false);
-                setAllNotesViewLevel('categories'); // 【關鍵】重置層級，避免下次打開白畫面
+                setAllNotesViewLevel('categories');
                 return;
             }
 
@@ -855,7 +860,7 @@ function EchoScriptApp() {
 
         window.addEventListener('popstate', handlePopState);
         return () => window.removeEventListener('popstate', handlePopState);
-    }, [showMenuModal, showAllNotesModal, showEditModal, showResponseModal, allNotesViewLevel]); // 加入 allNotesViewLevel 依賴
+    }, [showMenuModal, showAllNotesModal, showEditModal, showResponseModal]); // 注意：移除了 allNotesViewLevel
     
     useEffect(() => {
         try {
@@ -1299,6 +1304,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

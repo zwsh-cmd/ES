@@ -1181,8 +1181,8 @@ function EchoScriptApp() {
                                     
                                     {/* 日期顯示區 - 移至主旨語下方 */}
                                     <div className="flex gap-4 mb-6 text-[10px] text-stone-400 font-mono border-y border-stone-100 py-2 w-full">
-                                        <span className="flex items-center gap-1"><Calendar className="w-3 h-3"/> 新增: {currentNote.createdDate ? new Date(currentNote.createdDate).toLocaleDateString() : '預設資料'}</span>
-                                        <span className="flex items-center gap-1"><Edit className="w-3 h-3"/> 修改: {currentNote.modifiedDate ? new Date(currentNote.modifiedDate).toLocaleDateString() : (currentNote.createdDate ? new Date(currentNote.createdDate).toLocaleDateString() : '預設資料')}</span>
+                                        <span className="flex items-center gap-1"><Calendar className="w-3 h-3"/> 建立日期: {currentNote.createdDate ? new Date(currentNote.createdDate).toLocaleDateString() : '預設資料'}</span>
+                                        <span className="flex items-center gap-1"><Edit className="w-3 h-3"/> 修改日期: {currentNote.modifiedDate ? new Date(currentNote.modifiedDate).toLocaleDateString() : (currentNote.createdDate ? new Date(currentNote.createdDate).toLocaleDateString() : '預設資料')}</span>
                                     </div>
 
                                     <div className="text-lg leading-loose text-stone-700 font-sans text-justify whitespace-pre-wrap">
@@ -1377,6 +1377,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

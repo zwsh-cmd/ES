@@ -1127,7 +1127,7 @@ function EchoScriptApp() {
                                         <h2 className="text-sm font-bold text-stone-400 tracking-widest uppercase">{currentNote.category || "未分類"}</h2>
                                         <span className="text-xs text-stone-300 font-sans">#{currentNote.id.toString().slice(-3)}</span>
                                     </div>
-                                    <h3 className="text-xl font-sans text-stone-600 italic">{currentNote.subcategory}</h3>
+                                    <h3 className="text-xs font-bold text-stone-400 ml-2">{currentNote.subcategory}</h3>
                                     
                                     {/* 日期顯示區 */}
                                     <div className="flex gap-3 mt-3 text-[10px] text-stone-400 font-mono border-t border-stone-100 pt-2 w-full">
@@ -1330,6 +1330,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

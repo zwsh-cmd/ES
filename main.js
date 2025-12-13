@@ -91,6 +91,15 @@ const MarkdownRenderer = ({ content }) => {
                 if (line.startsWith('# ')) return <h1 key={i} className="text-xl font-bold mt-5 mb-3 text-stone-900">{parseInline(line.slice(2))}</h1>;
                 if (line.startsWith('## ')) return <h2 key={i} className="text-lg font-bold mt-4 mb-2 text-stone-600">{parseInline(line.slice(3))}</h2>;
                 if (line.startsWith('> ')) return <blockquote key={i} className="border-l-4 border-stone-300 pl-4 italic text-stone-500 my-2">{parseInline(line.slice(2))}</blockquote>;
+                // [新增] 處理清單符號：將 "- " 轉換為縮排 + 圓點
+                if (line.startsWith('- ')) {
+                    return (
+                        <div key={i} className="flex items-start gap-2 ml-4 mb-1">
+                            <span className="text-stone-400 font-bold mt-[0.4em] text-[0.6em]">•</span>
+                            <span className="flex-1">{parseInline(line.slice(2))}</span>
+                        </div>
+                    );
+                }
                 return <p key={i} className="mb-2 min-h-[1em]">{parseInline(line)}</p>;
             })}
         </div>
@@ -1366,6 +1375,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

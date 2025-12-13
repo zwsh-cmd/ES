@@ -577,12 +577,21 @@ const AllNotesModal = ({ notes, onClose, onItemClick, onDelete }) => {
 
     return (
         <div className="fixed inset-0 z-40 bg-stone-50 flex flex-col animate-in slide-in-from-right duration-300">
-            {/* 頂部導航列 */}
+            {/* 頂部導航列 (修復版) */}
             <div className="p-4 border-b border-stone-200 bg-white flex justify-between items-center sticky top-0 z-10">
                 <div className="flex items-center gap-2">
-                    {/* 顯示返回按鈕 */}
-                    {viewLevel !== 'categories' && !searchTerm && (
-                        <button onClick={handleBack} className="p-1 -ml-2 text-stone-500 hover:bg-stone-100 rounded-full mr-1">
+                    {/* 智慧返回/關閉按鈕：在非搜尋模式下 */}
+                    {(!searchTerm) ? (
+                        <button 
+                            onClick={viewLevel === 'categories' ? onClose : handleBack} 
+                            className="p-1 -ml-2 text-stone-500 hover:bg-stone-100 rounded-full mr-1"
+                            title={viewLevel === 'categories' ? "關閉" : "返回上一層"}
+                        >
+                            {/* 在「大分類」層級時顯示 X 關閉，否則顯示左箭頭返回 */}
+                            {viewLevel === 'categories' ? <X className="w-5 h-5" /> : <IconBase d="M15 18l-6-6 6-6" />}
+                        </button>
+                    ) : (
+                        <button onClick={() => setSearchTerm("")} className="p-1 -ml-2 text-stone-500 hover:bg-stone-100 rounded-full mr-1" title="返回分類列表">
                             <IconBase d="M15 18l-6-6 6-6" /> 
                         </button>
                     )}
@@ -594,7 +603,7 @@ const AllNotesModal = ({ notes, onClose, onItemClick, onDelete }) => {
                          selectedSubcategory}
                     </h2>
                 </div>
-                <button onClick={onClose} className="p-2 bg-stone-100 rounded-full"><X className="w-5 h-5 text-gray-600" /></button>
+                {/* 移除原本固定的右上角 X 按鈕 */}
             </div>
             
             {/* 搜尋框 */}
@@ -1274,6 +1283,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

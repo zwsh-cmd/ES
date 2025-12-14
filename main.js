@@ -371,7 +371,7 @@ const MarkdownEditorModal = ({ note, existingNotes = [], isNew = false, onClose,
                 <nav className="flex justify-between items-center p-4 border-b border-gray-100">
                     <button onClick={handleClose} className="text-gray-500 hover:text-gray-800 px-2">取消</button>
                     <h3 className="font-bold text-gray-800">{isNew ? "新增筆記" : "修改筆記"}</h3>
-                    <button onClick={handleSave} className="bg-stone-800 text-white px-4 py-1.5 rounded-full text-sm font-bold">儲存</button>
+                    <button onClick={handleSave} className="bg-[#2c3e50] text-white px-4 py-1.5 rounded-full text-sm font-bold">儲存</button>
                 </nav>
                 
                 {/* 主內容區：鎖定捲動 (Overflow Hidden) */}
@@ -509,7 +509,7 @@ const ResponseModal = ({ note, responses = [], onClose, onSave, onDelete, viewMo
                         <>
                             <button onClick={() => handleCheckUnsaved(() => setViewMode('list'))} className="text-gray-500 hover:text-gray-800 px-2">返回</button>
                             <h3 className="font-bold text-gray-800">{editingId ? "修改回應" : "新增回應"}</h3>
-                            <button onClick={handleSaveCurrent} className="bg-stone-800 text-white px-4 py-1.5 rounded-full text-sm font-bold">儲存</button>
+                            <button onClick={handleSaveCurrent} className="bg-[#2c3e50] text-white px-4 py-1.5 rounded-full text-sm font-bold">儲存</button>
                         </>
                     )}
                 </nav>
@@ -1246,7 +1246,7 @@ function EchoScriptApp() {
                     <button onClick={() => { setShowAllNotesModal(true); setAllNotesViewLevel('categories'); }} className="bg-white border border-stone-200 text-stone-600 p-2 rounded-full shadow-sm active:bg-stone-100" title="所有筆記">
                         <List className="w-5 h-5" />
                     </button>
-                    <button onClick={handleNextNote} disabled={isAnimating || notes.length <= 1} className="bg-stone-800 text-stone-50 px-4 py-2 rounded-full text-xs font-bold shadow-lg shadow-stone-300 active:scale-95 transition-transform flex items-center gap-2">
+                    <button onClick={handleNextNote} disabled={isAnimating || notes.length <= 1} className="bg-[#2c3e50] text-stone-50 px-4 py-2 rounded-full text-xs font-bold shadow-lg shadow-stone-300 active:scale-95 transition-transform flex items-center gap-2">
                         <RefreshCw className={`w-3 h-3 ${isAnimating ? 'animate-spin' : ''}`}/> 下一張
                     </button>
                 </div>
@@ -1364,9 +1364,9 @@ function EchoScriptApp() {
                             <h2 className="font-bold text-lg">我的資料庫</h2>
                             <button onClick={() => setShowMenuModal(false)}><X className="w-6 h-6 text-gray-400" /></button>
                         </div>
-                        <div className="flex p-2 gap-2 bg-white border-b border-stone-100">
+                       <div className="flex p-2 gap-2 bg-white border-b border-stone-100">
                             {['favorites', 'history', 'settings'].map(tab => (
-                                <button key={tab} onClick={() => setActiveTab(tab)} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-colors ${activeTab === tab ? 'bg-stone-800 text-white' : 'text-stone-500 hover:bg-stone-100'}`}>
+                                <button key={tab} onClick={() => setActiveTab(tab)} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-colors ${activeTab === tab ? 'bg-[#2c3e50] text-white' : 'text-stone-500 hover:bg-stone-100'}`}>
                                     {tab === 'favorites' ? '收藏筆記' : tab === 'history' ? '歷史紀錄' : '備份設定'}
                                 </button>
                             ))}
@@ -1399,7 +1399,7 @@ function EchoScriptApp() {
                                     </div>
                                     <div className="bg-white p-4 rounded-xl border border-stone-200">
                                         <h3 className="font-bold mb-2 flex items-center gap-2"><Upload className="w-4 h-4"/> 匯入資料</h3>
-                                        <label className="block w-full bg-stone-800 text-white text-center text-sm font-bold py-2 rounded-lg cursor-pointer">
+                                        <label className="block w-full bg-[#2c3e50] text-white text-center text-sm font-bold py-2 rounded-lg cursor-pointer">
                                             選擇檔案
                                             <input type="file" accept=".json" className="hidden" onChange={handleRestore} />
                                         </label>
@@ -1463,7 +1463,7 @@ function EchoScriptApp() {
             )}
 
             {notification && (
-                <div className="fixed bottom-20 left-1/2 -translate-x-1/2 bg-stone-800 text-white text-xs font-bold px-4 py-2 rounded-full shadow-lg animate-in fade-in slide-in-from-bottom-2 z-50">
+                <div className="fixed bottom-20 left-1/2 -translate-x-1/2 bg-[#2c3e50] text-white text-xs font-bold px-4 py-2 rounded-full shadow-lg animate-in fade-in slide-in-from-bottom-2 z-50">
                     {notification}
                 </div>
             )}
@@ -1473,6 +1473,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

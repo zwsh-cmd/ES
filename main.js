@@ -940,17 +940,17 @@ function EchoScriptApp() {
             exitLockRef.current = true;
 
             // 4. 執行退出確認
-            // [策略] 先把自己釘在首頁 (Trap)，確保背景畫面不會閃爍或消失
-            window.history.pushState({ page: 'home' }, '', '');
-            
+            // [修正策略] 不先推入 Trap，而是直接詢問。
+            // 此時瀏覽器已經退到了 Root (或前一頁)，我們根據回答決定去留。
             setTimeout(() => {
                 if (confirm("是否退出程式？")) {
                     // 確認退出：設定 Flag，讓後續的 popstate 不再攔截
                     isExitingRef.current = true;
-                    // 退回 Root 之前 (-2)，因為剛剛我們手動 push 了一個 home
-                    window.history.go(-2);
+                    // 因為我們現在已經在 Root 了，再退一步就是離開
+                    window.history.back();
                 } else {
-                    // 取消退出：我們已經在上面 pushState 回到 home 了，所以這裡只要解鎖就好
+                    // 取消退出：使用者不想走，我們手動把「Home」狀態推回去
+                    window.history.pushState({ page: 'home' }, '', '');
                     exitLockRef.current = false;
                 }
             }, 20);
@@ -1404,6 +1404,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

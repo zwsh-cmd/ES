@@ -1095,6 +1095,30 @@ function EchoScriptApp() {
         }, 300);
     };
 
+    // [新增] 回到上一張筆記
+    const handlePreviousNote = () => {
+        // 檢查是否有上一張紀錄 (recentIndices[0] 是當前，recentIndices[1] 是上一張)
+        if (recentIndices.length < 2) {
+            showNotification("沒有上一個筆記了");
+            return;
+        }
+
+        setIsAnimating(true);
+        setTimeout(() => {
+            const prevIndex = recentIndices[1]; // 取得上一張的索引
+            
+            // 更新狀態：移除最上層的「當前」紀錄，退回到上一層
+            setRecentIndices(prev => prev.slice(1));
+            setCurrentIndex(prevIndex);
+            
+            // 為了讓歷史紀錄完整，這邊也可以選擇是否要再次加入 History Tab (視需求而定，這邊選擇加入以保持軌跡)
+            addToHistory(notes[prevIndex]);
+
+            setIsAnimating(false);
+            window.scrollTo(0,0);
+        }, 300);
+    };
+
     const handleSaveNote = (updatedNote) => {
         const now = new Date().toISOString();
         if (isCreatingNew) {
@@ -1227,8 +1251,16 @@ function EchoScriptApp() {
         if (!touchStart || !touchCurrent) return;
         const dx = touchStart.x - touchCurrent.x;
         const dy = touchCurrent.y - touchStart.y;
+        
+        // 左滑 (下一張)
         if (Math.abs(dx) > Math.abs(dy) && dx > 50) handleNextNote(); 
+        
+        // [新增] 右滑 (上一張)
+        if (Math.abs(dx) > Math.abs(dy) && dx < -50) handlePreviousNote();
+
+        // 下拉 (下一張)
         if (Math.abs(dy) > Math.abs(dx) && dy > 100 && window.scrollY === 0) handleNextNote(); 
+        
         setTouchStart(null); setTouchCurrent(null);
     };
 
@@ -1473,6 +1505,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

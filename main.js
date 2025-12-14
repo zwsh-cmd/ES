@@ -920,33 +920,36 @@ function EchoScriptApp() {
             }
 
             // === E. 首頁退出 (Home -> Exit) ===
-            // 檢查歷史狀態 (event.state)
             const destState = event.state || {};
             
-            // 1. 過濾幽靈紀錄：
-            // 如果瀏覽器退回到了 'modal' 相關的歷史紀錄，但程式執行到這裡代表所有視窗都已經關閉 (Block C, D 都沒攔截)
-            // 這表示這是一個無效的歷史殘留，我們直接再退一步，不要打擾使用者
+            // 1. 過濾幽靈紀錄 (同舊代碼)
             if (destState.page && (destState.page.includes('modal') || destState.level)) {
                 window.history.back(); 
                 return;
             }
 
-            // 2. 防止重複觸發確認框 (Debounce)
+            // [新增] 2. 過濾重複的 Home 紀錄
+            // 如果退回後發現仍然在 'home' 狀態 (可能是堆疊中有重複)，則視為有效導航，不詢問退出
+            if (destState.page === 'home') {
+                return;
+            }
+
+            // 3. 防止重複觸發 (Debounce)
             if (exitLockRef.current) return;
             exitLockRef.current = true;
 
-            // 3. 執行退出確認
-            // 先把自己釘在首頁 (Trap)，防止使用者按了取消後真的退出去
-            setTimeout(() => window.history.pushState({ page: 'home' }, '', ''), 0);
-            
+            // 4. 執行退出確認
+            // 注意：這裡不先推入 Trap，而是根據使用者的選擇來決定去留
             setTimeout(() => {
                 if (confirm("是否退出程式？")) {
-                    // 確認退出：退回 Root 之前 (-2)
-                    window.history.go(-2);
+                    // 確認退出：因為目前已經退到了 Root (或更早)，再退一步就是離開
+                    window.history.back();
+                } else {
+                    // 取消退出：把使用者「推」回 Home 狀態，保持在 APP 內
+                    window.history.pushState({ page: 'home' }, '', '');
                 }
-                // 無論結果如何，一段時間後解鎖
                 exitLockRef.current = false;
-            }, 100);
+            }, 20);
         };
 
         window.addEventListener('popstate', handlePopState);
@@ -1397,6 +1400,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

@@ -1037,7 +1037,20 @@ function EchoScriptApp() {
             setDeckPointer(parseInt(localStorage.getItem('echoScript_DeckPointer') || '0', 10));
 
             if (finalNotes.length > 0) {
-                const idx = Math.floor(Math.random() * finalNotes.length);
+                // [修改] 智慧初始化：檢查是否有「最後編輯」的筆記需要恢復
+                const resumeId = localStorage.getItem('echoScript_ResumeNoteId');
+                let idx = -1;
+                
+                if (resumeId) {
+                    // 嘗試尋找該筆記的索引 (ID可能是數字或字串，轉型比較保險)
+                    idx = finalNotes.findIndex(n => n.id == resumeId);
+                }
+
+                // 如果沒有要恢復的紀錄，或是找不到該筆記，則執行隨機抽取
+                if (idx === -1) {
+                    idx = Math.floor(Math.random() * finalNotes.length);
+                }
+                
                 setCurrentIndex(idx);
                 addToHistory(finalNotes[idx]);
             }
@@ -1081,6 +1094,9 @@ function EchoScriptApp() {
 
     const handleNextNote = () => {
         if (notes.length <= 1) return;
+        // [新增] 使用者主動切換卡片，代表已離開編輯情境，清除恢復標記
+        localStorage.removeItem('echoScript_ResumeNoteId');
+        
         setIsAnimating(true);
         setTimeout(() => {
             let currentDeck = [...shuffleDeck];
@@ -1133,6 +1149,9 @@ function EchoScriptApp() {
 
     // [新增] 回到上一張筆記
     const handlePreviousNote = () => {
+        // [新增] 使用者主動切換卡片，清除恢復標記
+        localStorage.removeItem('echoScript_ResumeNoteId');
+
         // 檢查是否有上一張紀錄 (recentIndices[0] 是當前，recentIndices[1] 是上一張)
         if (recentIndices.length < 2) {
             showNotification("沒有上一個筆記了");
@@ -1157,10 +1176,13 @@ function EchoScriptApp() {
 
     const handleSaveNote = (updatedNote) => {
         const now = new Date().toISOString();
+        let targetId; // [新增] 記錄目標 ID
+
         if (isCreatingNew) {
             const newNote = { ...updatedNote, createdDate: now, modifiedDate: now };
             setNotes(prev => [newNote, ...prev]);
             setCurrentIndex(0);
+            targetId = newNote.id; // 新筆記的 ID
             showNotification("新筆記已建立");
         } else {
             const editedNote = { 
@@ -1170,8 +1192,13 @@ function EchoScriptApp() {
             };
             setNotes(prev => prev.map(n => n.id === editedNote.id ? editedNote : n));
             setFavorites(prev => prev.map(f => f.id === editedNote.id ? { ...f, ...editedNote } : f));
+            targetId = editedNote.id; // 編輯筆記的 ID
             showNotification("筆記已更新");
         }
+        
+        // [新增] 將此筆記 ID 存入 localStorage，下次開啟 App 時會優先顯示此筆記
+        localStorage.setItem('echoScript_ResumeNoteId', targetId);
+        
         setShowEditModal(false);
     };
 
@@ -1541,6 +1568,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

@@ -812,32 +812,17 @@ function EchoScriptApp() {
 
     // === 原地滯留導航控制器 (Stay-On-Page Logic) ===
     
-    // 1. 基礎防護網 (點擊後啟動)
+    // 1. 僅在開啟視窗時推入歷史紀錄 (移除首頁強制鎖定，解決無法退出問題)
     useEffect(() => {
-        const initGuard = () => {
-            if (!window.history.state || window.history.state.page !== 'home') {
-                window.history.replaceState({ page: 'root' }, '', '');
-                window.history.pushState({ page: 'home' }, '', '');
-            }
-        };
-        window.addEventListener('click', initGuard, { once: true });
-        window.addEventListener('touchstart', initGuard, { once: true });
-
-        // 開啟視窗時，推入一層紀錄
+        // 只有當視窗開啟時，我們才需要介入歷史紀錄 (這會讓編輯頁面有路可退，從而觸發攔截)
         const isAnyModalOpen = showMenuModal || showAllNotesModal || showEditModal || showResponseModal;
         if (isAnyModalOpen) {
             // [優化] 為 AllNotesModal 建立明確的歷史層級 'categories'
-            // 這樣在返回時，我們就能識別這是「分類層」，而不是模糊的 modal 狀態
             const state = showAllNotesModal 
                 ? { page: 'modal', level: 'categories', time: Date.now() }
                 : { page: 'modal', time: Date.now() };
             window.history.pushState(state, '', '');
         }
-
-        return () => {
-            window.removeEventListener('click', initGuard);
-            window.removeEventListener('touchstart', initGuard);
-        };
     }, [showMenuModal, showAllNotesModal, showEditModal, showResponseModal]);
 
     // 2. 攔截返回鍵 (核心：真實歷史堆疊 + 狀態同步)
@@ -1376,6 +1361,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

@@ -1066,7 +1066,19 @@ function EchoScriptApp() {
 
     const handleCopyMarkdown = () => {
         if (!currentNote) return;
-        const md = `# ${currentNote.category} / ${currentNote.subcategory}\n## ${currentNote.title}\n\n${currentNote.content}\n\n> 來自 EchoScript`;
+        
+        // 1. 處理內文標題降級 (只針對複製出去的文字，不影響原始顯示)
+        // 使用正則表達式，把內文裡的 # (H1) 變成 ## (H2)，## (H2) 變成 ### (H3)
+        // 這樣內文的標題就會乖乖待在「主旨語」之下
+        const demotedContent = currentNote.content
+            .replace(/^## /gm, '### ') // 先降級 H2 -> H3
+            .replace(/^# /gm, '## ');  // 再降級 H1 -> H2
+
+        // 2. 組合最終字串
+        // 分類資訊：改用 ###### (H6)，讓它變成最小的灰色小標
+        // 主旨語：改用 # (H1)，讓它變成最大的標題
+        const md = `###### ${currentNote.category} / ${currentNote.subcategory}\n# ${currentNote.title}\n\n${demotedContent}\n\n> 來自 EchoScript`;
+        
         if (navigator.clipboard && navigator.clipboard.writeText) {
             navigator.clipboard.writeText(md).then(() => showNotification("已複製 Markdown")).catch(() => showNotification("複製失敗"));
         }
@@ -1354,6 +1366,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

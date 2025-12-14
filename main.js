@@ -803,6 +803,7 @@ function EchoScriptApp() {
     // 新增：使用 Ref 追蹤狀態，解決 EventListener 閉包過期與依賴重覆觸發的問題
     const hasUnsavedChangesRef = useRef(hasUnsavedChanges);
     const responseViewModeRef = useRef(responseViewMode);
+    const exitLockRef = useRef(false); // [新增] 防止首頁退出確認重複彈出的鎖
 
     // 同步 Ref 與 State
     useEffect(() => { hasUnsavedChangesRef.current = hasUnsavedChanges; }, [hasUnsavedChanges]);
@@ -918,13 +919,34 @@ function EchoScriptApp() {
                 return;
             }
 
-            // === E. 首頁退出 ===
+            // === E. 首頁退出 (Home -> Exit) ===
+            // 檢查歷史狀態 (event.state)
+            const destState = event.state || {};
+            
+            // 1. 過濾幽靈紀錄：
+            // 如果瀏覽器退回到了 'modal' 相關的歷史紀錄，但程式執行到這裡代表所有視窗都已經關閉 (Block C, D 都沒攔截)
+            // 這表示這是一個無效的歷史殘留，我們直接再退一步，不要打擾使用者
+            if (destState.page && (destState.page.includes('modal') || destState.level)) {
+                window.history.back(); 
+                return;
+            }
+
+            // 2. 防止重複觸發確認框 (Debounce)
+            if (exitLockRef.current) return;
+            exitLockRef.current = true;
+
+            // 3. 執行退出確認
+            // 先把自己釘在首頁 (Trap)，防止使用者按了取消後真的退出去
             setTimeout(() => window.history.pushState({ page: 'home' }, '', ''), 0);
+            
             setTimeout(() => {
                 if (confirm("是否退出程式？")) {
+                    // 確認退出：退回 Root 之前 (-2)
                     window.history.go(-2);
                 }
-            }, 20);
+                // 無論結果如何，一段時間後解鎖
+                exitLockRef.current = false;
+            }, 100);
         };
 
         window.addEventListener('popstate', handlePopState);
@@ -1375,6 +1397,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

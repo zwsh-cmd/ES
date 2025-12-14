@@ -852,6 +852,9 @@ function EchoScriptApp() {
     
     const [history, setHistory] = useState([]);
     const [recentIndices, setRecentIndices] = useState([]);
+    // [新增] 洗牌機制狀態：儲存洗好的順序 (Deck) 與目前抽到的位置 (Pointer)
+    const [shuffleDeck, setShuffleDeck] = useState([]); 
+    const [deckPointer, setDeckPointer] = useState(0);
 
     const [showMenuModal, setShowMenuModal] = useState(false);
     const [showAllNotesModal, setShowAllNotesModal] = useState(false);
@@ -1029,6 +1032,9 @@ function EchoScriptApp() {
             
             setHistory(JSON.parse(localStorage.getItem('echoScript_History') || '[]'));
             setRecentIndices(JSON.parse(localStorage.getItem('echoScript_Recents') || '[]'));
+            // [新增] 讀取洗牌狀態
+            setShuffleDeck(JSON.parse(localStorage.getItem('echoScript_ShuffleDeck') || '[]'));
+            setDeckPointer(parseInt(localStorage.getItem('echoScript_DeckPointer') || '0', 10));
 
             if (finalNotes.length > 0) {
                 const idx = Math.floor(Math.random() * finalNotes.length);
@@ -1057,6 +1063,9 @@ function EchoScriptApp() {
     useEffect(() => { localStorage.setItem('echoScript_AllResponses', JSON.stringify(allResponses)); }, [allResponses]);
     useEffect(() => { localStorage.setItem('echoScript_History', JSON.stringify(history)); }, [history]);
     useEffect(() => { localStorage.setItem('echoScript_Recents', JSON.stringify(recentIndices)); }, [recentIndices]);
+    // [新增] 儲存洗牌狀態
+    useEffect(() => { localStorage.setItem('echoScript_ShuffleDeck', JSON.stringify(shuffleDeck)); }, [shuffleDeck]);
+    useEffect(() => { localStorage.setItem('echoScript_DeckPointer', deckPointer.toString()); }, [deckPointer]);
 
     const showNotification = (msg) => { setNotification(msg); setTimeout(() => setNotification(null), 3000); };
 
@@ -1074,16 +1083,43 @@ function EchoScriptApp() {
         if (notes.length <= 1) return;
         setIsAnimating(true);
         setTimeout(() => {
-            let newIndex; 
-            let attempts = 0;
-            do { 
-                newIndex = Math.floor(Math.random() * notes.length); 
-                attempts++; 
-            } while ((newIndex === currentIndex || recentIndices.includes(newIndex)) && attempts < 50);
+            let currentDeck = [...shuffleDeck];
+            let currentPointer = deckPointer;
 
+            // 檢查是否需要重新洗牌：
+            // 1. 牌堆是空的
+            // 2. 牌堆長度與筆記總數不符 (可能有新增/刪除筆記)
+            // 3. 指標已經指到最後一張了 (currentPointer >= currentDeck.length)
+            if (currentDeck.length !== notes.length || currentPointer >= currentDeck.length) {
+                // 建立新的索引陣列 [0, 1, 2, ... n-1]
+                const newDeck = Array.from({length: notes.length}, (_, i) => i);
+                
+                // Fisher-Yates 洗牌演算法
+                for (let i = newDeck.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [newDeck[i], newDeck[j]] = [newDeck[j], newDeck[i]];
+                }
+                
+                currentDeck = newDeck;
+                currentPointer = 0;
+                // 如果剛洗完牌的第一張剛好跟現在顯示的一樣，為了避免重複感，將第一張跟最後一張交換
+                if (notes[currentDeck[0]].id === (currentNote ? currentNote.id : null)) {
+                    [currentDeck[0], currentDeck[currentDeck.length - 1]] = [currentDeck[currentDeck.length - 1], currentDeck[0]];
+                }
+            }
+
+            // 抽出下一張
+            const newIndex = currentDeck[currentPointer];
+
+            // 更新狀態
+            setShuffleDeck(currentDeck);
+            setDeckPointer(currentPointer + 1);
+
+            // 為了支援「上一張」功能，我們仍然需要維護 recentIndices
             setRecentIndices(prev => {
                 const updated = [newIndex, ...prev];
-                if (updated.length > 20) updated.pop();
+                // 這裡可以保留較多的歷史紀錄以便回溯
+                if (updated.length > 50) updated.pop();
                 return updated;
             });
 
@@ -1505,6 +1541,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

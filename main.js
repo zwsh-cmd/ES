@@ -926,31 +926,32 @@ function EchoScriptApp() {
             // === E. 首頁退出 (Home -> Exit) ===
             const destState = event.state || {};
             
-            // 1. 過濾幽靈紀錄
+            // 1. 過濾幽靈紀錄 (無效的 modal 狀態直接跳過)
             if (destState.page && (destState.page.includes('modal') || destState.level)) {
                 window.history.back(); 
                 return;
             }
 
-            // 2. 過濾重複的 Home 紀錄
-            if (destState.page === 'home') return;
-
-            // 3. 防止重複觸發
+            // 2. 防止重複觸發 (Debounce)
             if (exitLockRef.current) return;
             exitLockRef.current = true;
 
-            // 4. 執行退出確認
-            // [修正策略] 不先推入 Trap，而是直接詢問。
-            // 此時瀏覽器已經退到了 Root (或前一頁)，我們根據回答決定去留。
+            // 3. 執行退出確認
+            // [策略] 先推入 Trap 穩住畫面，再詢問。
+            // 這樣可以避免在 Root 狀態時，背景可能閃爍或消失的問題。
+            window.history.pushState({ page: 'home' }, '', '');
+            
             setTimeout(() => {
                 if (confirm("是否退出程式？")) {
-                    // 確認退出：設定 Flag，讓後續的 popstate 不再攔截
+                    // 使用者選 Yes: 
+                    // 1. 設定 Flag，讓後續的 popstate 不再攔截。
+                    // 2. 執行 go(-2)：跳過剛剛推入的 Trap (-1) 並再退一步 (-1)，確保離開。
                     isExitingRef.current = true;
-                    // 因為我們現在已經在 Root 了，再退一步就是離開
-                    window.history.back();
+                    window.history.go(-2);
                 } else {
-                    // 取消退出：使用者不想走，我們手動把「Home」狀態推回去
-                    window.history.pushState({ page: 'home' }, '', '');
+                    // 使用者選 No: 
+                    // 什麼都不用做，因為我們在上面已經用 pushState 把他留住了。
+                    // 只需要解鎖即可。
                     exitLockRef.current = false;
                 }
             }, 20);
@@ -1404,6 +1405,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

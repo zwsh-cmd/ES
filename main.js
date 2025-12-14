@@ -859,9 +859,10 @@ function EchoScriptApp() {
             // === C. AllNotesModal 的三層導航邏輯 ===
             if (showAllNotesModal) {
                 const destState = event.state || {};
-                const currentLevel = allNotesViewLevelRef.current; // 取得當前層級 (防呆用)
+                const currentLevel = allNotesViewLevelRef.current;
 
-                // 1. 如果歷史紀錄明確指示要去的層級
+                // 1. 內部導航 (優先權最高)
+                // 只要歷史紀錄裡有 level 標籤，代表我們還是在視窗內部的移動
                 if (destState.level === 'notes') {
                     setAllNotesViewLevel('notes');
                     return;
@@ -870,30 +871,22 @@ function EchoScriptApp() {
                     setAllNotesViewLevel('subcategories');
                     return;
                 }
-                // 明確回到分類層
                 if (destState.level === 'categories') {
                     setAllNotesViewLevel('categories');
                     return;
                 }
 
-                // 2. 如果歷史紀錄說要回到 Home
-                if (destState.page === 'home') {
-                    // [關鍵修復/防呆] 如果當前還在次分類/筆記，卻不小心直接退回 Home (可能因中間層遺失)
-                    // 我們強制顯示「大分類」並保持視窗開啟，讓使用者覺得是「返回上一層」
-                    if (currentLevel !== 'categories') {
-                        setAllNotesViewLevel('categories');
-                        // 這裡不需 pushState，暫時停在 Home 的歷史點上顯示分類列表
-                        // 下一次按返回就會真的退出了，這符合使用者預期
-                        return;
-                    }
-                    
-                    // 只有當我們已經在 categories 層級時，才真正關閉視窗
-                    setShowAllNotesModal(false);
+                // 2. 外部導航 (當歷史紀錄沒有 level 時，代表要退出了)
+                
+                // [防呆] 如果人還在深層 (次分類/筆記)，但歷史紀錄卻直接跳到了外面 (Root/Home)
+                // 我們不直接關閉，而是先退回「大分類」，給使用者一種「返回上一層」的感覺
+                if (currentLevel !== 'categories') {
                     setAllNotesViewLevel('categories');
                     return;
                 }
-                
-                // 3. Fallback: 其他未定義狀態，預設回到大分類
+
+                // [正常退出] 人在「大分類」，且沒有更上一層的 level 了 -> 關閉視窗回到首頁
+                setShowAllNotesModal(false);
                 setAllNotesViewLevel('categories');
                 return;
             }
@@ -1361,6 +1354,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

@@ -803,7 +803,8 @@ function EchoScriptApp() {
     // 新增：使用 Ref 追蹤狀態，解決 EventListener 閉包過期與依賴重覆觸發的問題
     const hasUnsavedChangesRef = useRef(hasUnsavedChanges);
     const responseViewModeRef = useRef(responseViewMode);
-    const exitLockRef = useRef(false); // [新增] 防止首頁退出確認重複彈出的鎖
+    const exitLockRef = useRef(false); 
+    const isExitingRef = useRef(false); // [新增] 標記是否正在執行退出程序
 
     // 同步 Ref 與 State
     useEffect(() => { hasUnsavedChangesRef.current = hasUnsavedChanges; }, [hasUnsavedChanges]);
@@ -842,6 +843,9 @@ function EchoScriptApp() {
     // 2. 攔截返回鍵 (核心：真實歷史堆疊 + 狀態同步)
     useEffect(() => {
         const handlePopState = (event) => {
+            // 如果已經確認要退出，就不再攔截任何返回動作，讓瀏覽器自然離開
+            if (isExitingRef.current) return;
+
             // === A. 編輯中未存檔 ===
             if (hasUnsavedChangesRef.current) {
                 setTimeout(() => window.history.pushState({ page: 'modal_trap', time: Date.now() }, '', ''), 0);
@@ -922,33 +926,33 @@ function EchoScriptApp() {
             // === E. 首頁退出 (Home -> Exit) ===
             const destState = event.state || {};
             
-            // 1. 過濾幽靈紀錄 (同舊代碼)
+            // 1. 過濾幽靈紀錄
             if (destState.page && (destState.page.includes('modal') || destState.level)) {
                 window.history.back(); 
                 return;
             }
 
-            // [新增] 2. 過濾重複的 Home 紀錄
-            // 如果退回後發現仍然在 'home' 狀態 (可能是堆疊中有重複)，則視為有效導航，不詢問退出
-            if (destState.page === 'home') {
-                return;
-            }
+            // 2. 過濾重複的 Home 紀錄
+            if (destState.page === 'home') return;
 
-            // 3. 防止重複觸發 (Debounce)
+            // 3. 防止重複觸發
             if (exitLockRef.current) return;
             exitLockRef.current = true;
 
             // 4. 執行退出確認
-            // 注意：這裡不先推入 Trap，而是根據使用者的選擇來決定去留
+            // [策略] 先把自己釘在首頁 (Trap)，確保背景畫面不會閃爍或消失
+            window.history.pushState({ page: 'home' }, '', '');
+            
             setTimeout(() => {
                 if (confirm("是否退出程式？")) {
-                    // 確認退出：因為目前已經退到了 Root (或更早)，再退一步就是離開
-                    window.history.back();
+                    // 確認退出：設定 Flag，讓後續的 popstate 不再攔截
+                    isExitingRef.current = true;
+                    // 退回 Root 之前 (-2)，因為剛剛我們手動 push 了一個 home
+                    window.history.go(-2);
                 } else {
-                    // 取消退出：把使用者「推」回 Home 狀態，保持在 APP 內
-                    window.history.pushState({ page: 'home' }, '', '');
+                    // 取消退出：我們已經在上面 pushState 回到 home 了，所以這裡只要解鎖就好
+                    exitLockRef.current = false;
                 }
-                exitLockRef.current = false;
             }, 20);
         };
 
@@ -1400,6 +1404,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

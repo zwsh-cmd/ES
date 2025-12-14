@@ -565,24 +565,79 @@ const ResponseModal = ({ note, responses = [], onClose, onSave, onDelete, viewMo
 };
 
 // === 6. 所有筆記列表 Modal (支援分類顯示) ===
-// [修改] 接收外部控制的 viewLevel, setViewLevel
-const AllNotesModal = ({ notes, onClose, onItemClick, onDelete, viewLevel, setViewLevel }) => {
-    // 狀態：目前顯示層級 ('categories' > 'subcategories' > 'notes')
-    // const [viewLevel, setViewLevel] = useState('categories'); // 已提升至父元件
+// [修改] 接收 categoryMap 以支援保留空分類與刪除
+const AllNotesModal = ({ notes, onClose, onItemClick, onDelete, viewLevel, setViewLevel, categoryMap, setCategoryMap }) => {
     const [selectedCategory, setSelectedCategory] = useState(null);
     const [selectedSubcategory, setSelectedSubcategory] = useState(null);
     const [searchTerm, setSearchTerm] = useState("");
 
-    // 1. 取得所有不重複的大分類
-    const categories = useMemo(() => {
-        return [...new Set(notes.map(n => n.category || "未分類"))];
-    }, [notes]);
+    // 長按偵測 Ref
+    const pressTimer = useRef(null);
+    const isLongPress = useRef(false);
 
-    // 2. 取得選定大分類下的次分類
+    // 1. 使用 categoryMap 取得大分類 (包含空的)
+    const categories = useMemo(() => Object.keys(categoryMap || {}), [categoryMap]);
+
+    // 2. 使用 categoryMap 取得次分類 (包含空的)
     const subcategories = useMemo(() => {
-        if (!selectedCategory) return [];
-        return [...new Set(notes.filter(n => (n.category || "未分類") === selectedCategory).map(n => n.subcategory || "一般"))];
-    }, [notes, selectedCategory]);
+        if (!selectedCategory || !categoryMap) return [];
+        return categoryMap[selectedCategory] || [];
+    }, [categoryMap, selectedCategory]);
+
+    // 刪除大分類邏輯
+    const handleDeleteCategory = (cat) => {
+        const hasNotes = notes.some(n => (n.category || "未分類") === cat);
+        if (hasNotes) {
+            alert(`「${cat}」下還有筆記，無法刪除！`);
+            return;
+        }
+        if (confirm(`確定要刪除空分類「${cat}」嗎？`)) {
+            const newMap = { ...categoryMap };
+            delete newMap[cat];
+            setCategoryMap(newMap);
+        }
+    };
+
+    // 刪除次分類邏輯
+    const handleDeleteSubcategory = (sub) => {
+        const hasNotes = notes.some(n => (n.category || "未分類") === selectedCategory && (n.subcategory || "一般") === sub);
+        if (hasNotes) {
+            alert(`「${sub}」下還有筆記，無法刪除！`);
+            return;
+        }
+        if (confirm(`確定要刪除空次分類「${sub}」嗎？`)) {
+            const newMap = { ...categoryMap };
+            newMap[selectedCategory] = newMap[selectedCategory].filter(s => s !== sub);
+            setCategoryMap(newMap);
+        }
+    };
+
+    // 長按事件綁定器
+    const bindLongPress = (onLongPress, onClick) => {
+        const start = () => {
+            isLongPress.current = false;
+            pressTimer.current = setTimeout(() => {
+                isLongPress.current = true;
+                if (navigator.vibrate) navigator.vibrate(50);
+                onLongPress();
+            }, 600); // 600ms 視為長按
+        };
+        const end = () => { if (pressTimer.current) clearTimeout(pressTimer.current); };
+        
+        return {
+            onMouseDown: start, onTouchStart: start,
+            onMouseUp: end, onMouseLeave: end, onTouchEnd: end,
+            onClick: (e) => {
+                if (isLongPress.current) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    isLongPress.current = false; // 重置
+                } else {
+                    onClick(e);
+                }
+            }
+        };
+    };
 
     // 3. 取得最終筆記列表
     const targetNotes = useMemo(() => {
@@ -679,32 +734,51 @@ const AllNotesModal = ({ notes, onClose, onItemClick, onDelete, viewLevel, setVi
                 {!searchTerm && (
                     <>
                         {/* Level 1: 大分類列表 */}
-                        {viewLevel === 'categories' && categories.map(cat => (
-                            <div key={cat} onClick={() => { 
-                                setSelectedCategory(cat); 
-                                setViewLevel('subcategories'); 
-                                // [關鍵修改] 建立真實歷史紀錄：標記 level 為 subcategories
-                                window.history.pushState({ page: 'modal', level: 'subcategories', time: Date.now() }, '', '');
-                            }}
-                                 className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 mb-3 flex justify-between items-center cursor-pointer hover:border-stone-300 active:scale-[0.98] transition-transform">
-                                <span className="font-bold text-lg text-stone-800">{cat}</span>
-                                <IconBase d="M9 18l6-6-6-6" className="text-stone-300 w-5 h-5" />
-                            </div>
-                        ))}
+                        {viewLevel === 'categories' && categories.map(cat => {
+                            // 計算該分類下的筆記數，若是 0 則顯示 (空) 提示
+                            const count = notes.filter(n => (n.category || "未分類") === cat).length;
+                            return (
+                                <div key={cat} 
+                                     {...bindLongPress(
+                                         () => handleDeleteCategory(cat),
+                                         () => {
+                                             setSelectedCategory(cat); 
+                                             setViewLevel('subcategories'); 
+                                             window.history.pushState({ page: 'modal', level: 'subcategories', time: Date.now() }, '', '');
+                                         }
+                                     )}
+                                     className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 mb-3 flex justify-between items-center cursor-pointer hover:border-stone-300 active:scale-[0.98] transition-transform select-none">
+                                    <div className="flex items-baseline gap-2">
+                                        <span className="font-bold text-lg text-stone-800">{cat}</span>
+                                        {count === 0 && <span className="text-xs text-stone-400 bg-stone-100 px-2 py-0.5 rounded-full">空 (長按刪除)</span>}
+                                    </div>
+                                    <IconBase d="M9 18l6-6-6-6" className="text-stone-300 w-5 h-5" />
+                                </div>
+                            );
+                        })}
 
                         {/* Level 2: 次分類列表 */}
-                        {viewLevel === 'subcategories' && subcategories.map(sub => (
-                            <div key={sub} onClick={() => { 
-                                setSelectedSubcategory(sub); 
-                                setViewLevel('notes'); 
-                                // [關鍵修改] 建立真實歷史紀錄：標記 level 為 notes
-                                window.history.pushState({ page: 'modal', level: 'notes', time: Date.now() }, '', '');
-                            }}
-                                 className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 mb-3 flex justify-between items-center cursor-pointer hover:border-stone-300 active:scale-[0.98] transition-transform">
-                                <span className="font-medium text-lg text-stone-700">{sub}</span>
-                                <IconBase d="M9 18l6-6-6-6" className="text-stone-300 w-5 h-5" />
-                            </div>
-                        ))}
+                        {viewLevel === 'subcategories' && subcategories.map(sub => {
+                            const count = notes.filter(n => (n.category || "未分類") === selectedCategory && (n.subcategory || "一般") === sub).length;
+                            return (
+                                <div key={sub} 
+                                     {...bindLongPress(
+                                         () => handleDeleteSubcategory(sub),
+                                         () => {
+                                             setSelectedSubcategory(sub); 
+                                             setViewLevel('notes'); 
+                                             window.history.pushState({ page: 'modal', level: 'notes', time: Date.now() }, '', '');
+                                         }
+                                     )}
+                                     className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 mb-3 flex justify-between items-center cursor-pointer hover:border-stone-300 active:scale-[0.98] transition-transform select-none">
+                                    <div className="flex items-baseline gap-2">
+                                        <span className="font-medium text-lg text-stone-700">{sub}</span>
+                                        {count === 0 && <span className="text-xs text-stone-400 bg-stone-100 px-2 py-0.5 rounded-full">空 (長按刪除)</span>}
+                                    </div>
+                                    <IconBase d="M9 18l6-6-6-6" className="text-stone-300 w-5 h-5" />
+                                </div>
+                            );
+                        })}
 
                         {/* Level 3: 最終筆記列表 */}
                         {viewLevel === 'notes' && targetNotes.map(item => (
@@ -786,6 +860,31 @@ function EchoScriptApp() {
     const [showResponseModal, setShowResponseModal] = useState(false);
     const [activeTab, setActiveTab] = useState('favorites');
     const [notification, setNotification] = useState(null);
+    
+    // [新增] 分類結構地圖 { "大分類": ["次分類1", "次分類2"] }，用於保留空分類
+    const [categoryMap, setCategoryMap] = useState({});
+
+    // [同步] 當筆記更新時，將新的分類補入結構中 (只增不減，達成保留效果)
+    useEffect(() => {
+        setCategoryMap(prev => {
+            const newMap = { ...prev };
+            let hasChange = false;
+            notes.forEach(n => {
+                const c = n.category || "未分類";
+                const s = n.subcategory || "一般";
+                if (!newMap[c]) { newMap[c] = []; hasChange = true; }
+                if (!newMap[c].includes(s)) { newMap[c].push(s); hasChange = true; }
+            });
+            return hasChange ? newMap : prev;
+        });
+    }, [notes]);
+
+    // [存取] 持久化分類結構
+    useEffect(() => {
+        const savedMap = localStorage.getItem('echoScript_CategoryMap');
+        if (savedMap) setCategoryMap(JSON.parse(savedMap));
+    }, []);
+    useEffect(() => { localStorage.setItem('echoScript_CategoryMap', JSON.stringify(categoryMap)); }, [categoryMap]);
 
     // [新增] 儲存 AllNotesModal 的內部導航層級狀態，用於支援 PopState
     const [allNotesViewLevel, setAllNotesViewLevel] = useState('categories'); // 'categories', 'subcategories', 'notes'
@@ -1327,6 +1426,8 @@ function EchoScriptApp() {
             {showAllNotesModal && (
                 <AllNotesModal 
                     notes={notes}
+                    categoryMap={categoryMap}
+                    setCategoryMap={setCategoryMap}
                     // 關閉時重置狀態
                     onClose={() => { 
                         setShowAllNotesModal(false); 
@@ -1372,6 +1473,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

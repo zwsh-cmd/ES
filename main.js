@@ -36,7 +36,7 @@ const Underline = (props) => <IconBase d={["M6 3v7a6 6 0 0 0 6 6 6 6 0 0 0 6-6V3
 const Calendar = (props) => <IconBase d={["M19 4H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z", "M16 2v4", "M8 2v4", "M3 10h18"]} {...props} />;
 
 
-// === 2. 初始編劇筆記資料庫 (確保有完整分類) ===
+// === 2. 初始筆記資料庫 (確保有完整分類) ===
 const INITIAL_NOTES = [
     { id: 1, category: "故事結構", subcategory: "三幕劇", title: "第一幕：鋪陳", content: "在第一幕中，必須建立主角的現狀（Normal World），並引入『引發事件』（Inciting Incident），這通常發生在故事的前10-15%。這個事件打破了主角的平衡，迫使他們做出選擇。" },
     { id: 2, category: "人物塑造", subcategory: "角色弧光", title: "內在需求 vs 外在慾望", content: "一個立體的角色通常擁有一個明確的『外在慾望』（Want），例如贏得比賽或復仇；但他們同時有一個隱藏的『內在需求』（Need），通常是他們自己沒意識到的性格缺陷。故事的終點，往往是角色犧牲了慾望，滿足了需求。" },
@@ -1066,7 +1066,7 @@ function EchoScriptApp() {
 
     const handleCopyMarkdown = () => {
         if (!currentNote) return;
-        const md = `# ${currentNote.category} / ${currentNote.subcategory}\n## ${currentNote.title}\n\n${currentNote.content}\n\n> 來自 EchoScript 編劇靈感庫`;
+        const md = `# ${currentNote.category} / ${currentNote.subcategory}\n## ${currentNote.title}\n\n${currentNote.content}\n\n> 來自 EchoScript`;
         if (navigator.clipboard && navigator.clipboard.writeText) {
             navigator.clipboard.writeText(md).then(() => showNotification("已複製 Markdown")).catch(() => showNotification("複製失敗"));
         }
@@ -1354,6 +1354,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

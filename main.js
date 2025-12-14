@@ -1067,11 +1067,26 @@ function EchoScriptApp() {
     const handleCopyText = () => {
         if (!currentNote) return;
         
-        // 只複製主旨列和筆記內容，不帶額外的 Markdown 格式 (如 # 標題或 > 引用)
-        const text = `${currentNote.title}\n\n${currentNote.content}`;
+        // 1. 基礎內容：主旨 + 內文
+        let text = `${currentNote.title}\n\n${currentNote.content}`;
+
+        // 2. 處理回應：如果有回應，則加入分隔線與回應內容
+        const responses = allResponses[currentNote.id] || [];
+        if (responses.length > 0) {
+            // 加入使用者指定的虛線分隔
+            text += '\n\n---------------- -回應- ----------------\n\n';
+            
+            // 組合回應 (先日期，換行後內容)
+            const responseText = responses.map(r => {
+                const date = new Date(r.timestamp).toLocaleDateString();
+                return `${date}\n${r.text}`;
+            }).join('\n\n');
+            
+            text += responseText;
+        }
         
         if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(text).then(() => showNotification("已複製文章")).catch(() => showNotification("複製失敗"));
+            navigator.clipboard.writeText(text).then(() => showNotification("已複製筆記與回應")).catch(() => showNotification("複製失敗"));
         }
     };
 
@@ -1357,6 +1372,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

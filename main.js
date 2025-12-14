@@ -1162,7 +1162,7 @@ function EchoScriptApp() {
                                         <span className="flex items-center gap-1"><Edit className="w-3 h-3"/> 修改日期: {currentNote.modifiedDate ? new Date(currentNote.modifiedDate).toLocaleDateString() : (currentNote.createdDate ? new Date(currentNote.createdDate).toLocaleDateString() : '預設資料')}</span>
                                     </div>
 
-                                    <div className="-mt-2 text-lg leading-loose text-stone-700 font-sans text-justify whitespace-pre-wrap">
+                                    <div className="-mt-5 text-lg leading-loose text-stone-700 font-sans text-justify whitespace-pre-wrap">
                                         <MarkdownRenderer content={currentNote.content} />
                                     </div>
                                 </div>
@@ -1354,6 +1354,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

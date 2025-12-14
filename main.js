@@ -924,41 +924,8 @@ function EchoScriptApp() {
             }
 
             // === E. 首頁退出 (Home -> Exit) ===
-            const destState = event.state || {};
-            
-            // 1. 過濾幽靈紀錄 (如果退回到了奇怪的 modal 狀態，自動再退一步)
-            if (destState.page && (destState.page.includes('modal') || destState.level)) {
-                window.history.back(); 
-                return;
-            }
-
-            // 2. 防止重複觸發 (Debounce)
-            if (exitLockRef.current) return;
-            exitLockRef.current = true;
-
-            // 3. 執行退出確認
-            // [根本解決方案]
-            // 當程式執行到這裡時，瀏覽器 *已經* 發生了退後動作，現在正停在 Root (或上一頁)。
-            // 我們不需要先推任何東西，直接利用這個「暫停」的狀態來詢問。
-            
-            // 使用 setTimeout 讓 UI 有一點喘息時間，避免 iOS 手勢衝突
-            setTimeout(() => {
-                if (confirm("是否退出程式？")) {
-                    // 使用者選 Yes:
-                    // 設定 Flag，告訴程式：「接下來不管發生什麼 popstate，都不要攔截了」。
-                    isExitingRef.current = true;
-                    
-                    // 因為我們現在已經在 Root 了 (剛剛按的那次返回)，
-                    // 所以只要「再退一步」，就是離開 App。
-                    window.history.back();
-                } else {
-                    // 使用者選 No:
-                    // 因為我們剛剛真的退到了 Root，使用者不想走，
-                    // 所以我們有責任把「Home」的狀態補回去，讓歷史紀錄恢復原狀。
-                    window.history.pushState({ page: 'home' }, '', '');
-                    exitLockRef.current = false;
-                }
-            }, 20);
+            // 不再攔截退出動作，讓瀏覽器自然返回上一頁 (或關閉 PWA)
+            // 解決所有重複詢問與迴圈問題
         };
 
         window.addEventListener('popstate', handlePopState);
@@ -1409,6 +1376,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

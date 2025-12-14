@@ -926,7 +926,7 @@ function EchoScriptApp() {
             // === E. 首頁退出 (Home -> Exit) ===
             const destState = event.state || {};
             
-            // 1. 過濾幽靈紀錄 (無效的 modal 狀態直接跳過)
+            // 1. 過濾幽靈紀錄 (如果退回到了奇怪的 modal 狀態，自動再退一步)
             if (destState.page && (destState.page.includes('modal') || destState.level)) {
                 window.history.back(); 
                 return;
@@ -937,21 +937,25 @@ function EchoScriptApp() {
             exitLockRef.current = true;
 
             // 3. 執行退出確認
-            // [策略] 先推入 Trap 穩住畫面，再詢問。
-            // 這樣可以避免在 Root 狀態時，背景可能閃爍或消失的問題。
-            window.history.pushState({ page: 'home' }, '', '');
+            // [根本解決方案]
+            // 當程式執行到這裡時，瀏覽器 *已經* 發生了退後動作，現在正停在 Root (或上一頁)。
+            // 我們不需要先推任何東西，直接利用這個「暫停」的狀態來詢問。
             
+            // 使用 setTimeout 讓 UI 有一點喘息時間，避免 iOS 手勢衝突
             setTimeout(() => {
                 if (confirm("是否退出程式？")) {
-                    // 使用者選 Yes: 
-                    // 1. 設定 Flag，讓後續的 popstate 不再攔截。
-                    // 2. 執行 go(-2)：跳過剛剛推入的 Trap (-1) 並再退一步 (-1)，確保離開。
+                    // 使用者選 Yes:
+                    // 設定 Flag，告訴程式：「接下來不管發生什麼 popstate，都不要攔截了」。
                     isExitingRef.current = true;
-                    window.history.go(-2);
+                    
+                    // 因為我們現在已經在 Root 了 (剛剛按的那次返回)，
+                    // 所以只要「再退一步」，就是離開 App。
+                    window.history.back();
                 } else {
-                    // 使用者選 No: 
-                    // 什麼都不用做，因為我們在上面已經用 pushState 把他留住了。
-                    // 只需要解鎖即可。
+                    // 使用者選 No:
+                    // 因為我們剛剛真的退到了 Root，使用者不想走，
+                    // 所以我們有責任把「Home」的狀態補回去，讓歷史紀錄恢復原狀。
+                    window.history.pushState({ page: 'home' }, '', '');
                     exitLockRef.current = false;
                 }
             }, 20);
@@ -1405,6 +1409,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

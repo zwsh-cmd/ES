@@ -927,8 +927,13 @@ function EchoScriptApp() {
     const exitLockRef = useRef(false); 
     const isExitingRef = useRef(false); // [新增] 標記是否正在執行退出程序
 
+    // [新增] 追蹤本次會話是否有資料變更 (用於離線備份提示)
+    const [hasDataChangedInSession, setHasDataChangedInSession] = useState(false);
+    const hasDataChangedInSessionRef = useRef(false);
+
     // 同步 Ref 與 State
     useEffect(() => { hasUnsavedChangesRef.current = hasUnsavedChanges; }, [hasUnsavedChanges]);
+    useEffect(() => { hasDataChangedInSessionRef.current = hasDataChangedInSession; }, [hasDataChangedInSession]);
     useEffect(() => { responseViewModeRef.current = responseViewMode; }, [responseViewMode]);
 
     // === 原地滯留導航控制器 (Stay-On-Page Logic) ===
@@ -1023,6 +1028,26 @@ function EchoScriptApp() {
             }
 
             // === E. 首頁退出 (Home -> Exit) ===
+            // 檢查是否有資料變更，若有則提示備份
+            if (hasDataChangedInSessionRef.current) {
+                // 暫時阻止退出，將狀態推回去
+                window.history.pushState({ page: 'home_trap', time: Date.now() }, '', '');
+                
+                if (confirm("您本次使用已更動過資料，離開前是否前往備份？")) {
+                    setShowMenuModal(true);
+                    setActiveTab('settings');
+                    // 重置變更狀態，避免在備份頁面按返回時又跳出一次
+                    setHasDataChangedInSession(false); 
+                } else {
+                    // 如果使用者按「取消」，代表他真的想走，但因為我們剛剛 pushState 了，
+                    // 使用者需要再按一次返回鍵才能真正離開。
+                    // 為了不讓使用者覺得卡住，這裡我們也可以選擇不做任何事，
+                    // 讓他停留在首頁，或者您可以選擇清除狀態讓他下次直接走：
+                    // setHasDataChangedInSession(false); // 如果希望按否之後下次直接退出，可解開這行
+                }
+                return;
+            }
+
             // 不再攔截退出動作，讓瀏覽器自然返回上一頁 (或關閉 PWA)
             // 解決所有重複詢問與迴圈問題
         };
@@ -1271,6 +1296,7 @@ function EchoScriptApp() {
         localStorage.setItem('echoScript_DeckPointer', nextPointer.toString());
         localStorage.setItem('echoScript_ResumeNoteId', String(targetId));
         
+        setHasDataChangedInSession(true); // [新增] 標記資料已變更
         setShowEditModal(false);
     };
 
@@ -1318,6 +1344,7 @@ function EchoScriptApp() {
             // 確保資料庫同步
             localStorage.setItem('echoScript_AllNotes', JSON.stringify(newNotes));
 
+            setHasDataChangedInSession(true); // [新增] 標記資料已變更
             showNotification("筆記已刪除");
         }
     };
@@ -1355,6 +1382,7 @@ function EchoScriptApp() {
         // [新增] 只要有編輯或新增回應，就表示使用者正在關注此筆記，鎖定它！
         localStorage.setItem('echoScript_ResumeNoteId', currentNote.id);
 
+        setHasDataChangedInSession(true); // [新增] 標記資料已變更
         showNotification("回應已儲存");
     };
 
@@ -1365,6 +1393,7 @@ function EchoScriptApp() {
                 const newNoteResponses = noteResponses.filter(r => r.id !== responseId);
                 return { ...prev, [currentNote.id]: newNoteResponses };
             });
+            setHasDataChangedInSession(true); // [新增] 標記資料已變更
             showNotification("回應已刪除");
         }
     };
@@ -1687,6 +1716,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

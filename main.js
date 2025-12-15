@@ -340,7 +340,26 @@ const MarkdownEditorModal = ({ note, existingNotes = [], isNew = false, onClose,
 
     const handleSave = () => {
         if (!formData.title || !formData.content) { alert("請至少填寫標題和內容"); return; }
-        onSave({ ...note, ...formData, id: note?.id || Date.now() });
+        
+        let finalId = note?.id;
+        
+        // 如果是新筆記 (沒有 ID)，則計算新的序號
+        if (!finalId) {
+            // 1. 取出所有 ID，並轉為數字
+            const allIds = existingNotes.map(n => Number(n.id) || 0);
+            
+            // 2. [關鍵邏輯] 過濾掉那些像是時間戳記的長亂碼 (例如大於 100 萬的數字)
+            // 這樣就算資料庫裡有 "171358..." 這種怪 ID，我們也不會被它影響
+            const validIds = allIds.filter(id => id < 1000000);
+            
+            // 3. 找出最大值，若沒有則從 0 開始 (預設資料最大是 10)
+            const maxId = validIds.length > 0 ? Math.max(...validIds) : 0;
+            
+            // 4. 新 ID 就是最大值 + 1
+            finalId = maxId + 1;
+        }
+
+        onSave({ ...note, ...formData, id: finalId });
     };
 
     // 內部的關閉按鈕邏輯 (備用，主要依賴主程式的攔截)
@@ -1380,7 +1399,7 @@ function EchoScriptApp() {
                                             <span className="text-stone-300">|</span>
                                             <h3>{currentNote.subcategory}</h3>
                                         </div>
-                                        <span className="text-xs text-stone-300 font-sans">#{currentNote.id.toString().slice(-3)}</span>
+                                        <span className="text-xs text-stone-300 font-sans">#{currentNote.id}</span>
                                     </div>
                                 </div>
                                 
@@ -1587,6 +1606,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

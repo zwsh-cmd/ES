@@ -34,6 +34,7 @@ const Quote = (props) => <IconBase d={["M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-
 const Italic = (props) => <IconBase d={["M19 4h-9", "M14 20H5", "M15 4L9 20"]} {...props} />;
 const Underline = (props) => <IconBase d={["M6 3v7a6 6 0 0 0 6 6 6 6 0 0 0 6-6V3", "M4 21h16"]} {...props} />;
 const Calendar = (props) => <IconBase d={["M19 4H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z", "M16 2v4", "M8 2v4", "M3 10h18"]} {...props} />;
+const GripVertical = (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><circle cx="9" cy="12" r="1"/><circle cx="9" cy="5" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="19" r="1"/></svg>;
 
 
 // === 2. 初始筆記資料庫 (確保有完整分類) ===
@@ -584,11 +585,98 @@ const ResponseModal = ({ note, responses = [], onClose, onSave, onDelete, viewMo
 };
 
 // === 6. 所有筆記列表 Modal (支援分類顯示) ===
-// [修改] 接收 categoryMap 以支援保留空分類與刪除
-const AllNotesModal = ({ notes, onClose, onItemClick, onDelete, viewLevel, setViewLevel, categoryMap, setCategoryMap }) => {
+// [修改] 接收 setNotes 以支援排序
+const AllNotesModal = ({ notes, setNotes, onClose, onItemClick, onDelete, viewLevel, setViewLevel, categoryMap, setCategoryMap }) => {
     const [selectedCategory, setSelectedCategory] = useState(null);
     const [selectedSubcategory, setSelectedSubcategory] = useState(null);
     const [searchTerm, setSearchTerm] = useState("");
+
+    // [新增] 拖曳排序用的 Refs
+    const dragItem = useRef(null);
+    const dragOverItem = useRef(null);
+
+    // [新增] 執行排序資料更新
+    const handleSort = () => {
+        // 防止無效拖曳
+        if (dragItem.current === null || dragOverItem.current === null || dragItem.current === dragOverItem.current) {
+            dragItem.current = null;
+            dragOverItem.current = null;
+            return;
+        }
+
+        // 1. 處理大分類排序
+        if (viewLevel === 'categories') {
+             let _categories = Object.keys(categoryMap);
+             const draggedItemContent = _categories[dragItem.current];
+             _categories.splice(dragItem.current, 1);
+             _categories.splice(dragOverItem.current, 0, draggedItemContent);
+             
+             const newMap = {};
+             _categories.forEach(cat => { newMap[cat] = categoryMap[cat]; });
+             setCategoryMap(newMap);
+        }
+        // 2. 處理次分類排序
+        else if (viewLevel === 'subcategories') {
+            let _subs = [...(categoryMap[selectedCategory] || [])];
+            const draggedItemContent = _subs[dragItem.current];
+            _subs.splice(dragItem.current, 1);
+            _subs.splice(dragOverItem.current, 0, draggedItemContent);
+            
+            const newMap = { ...categoryMap };
+            newMap[selectedCategory] = _subs;
+            setCategoryMap(newMap);
+        }
+        // 3. 處理筆記排序 (最複雜，因為是在過濾清單中移動，需對應回原始清單)
+        else if (viewLevel === 'notes') {
+            const currentList = notes.filter(n => 
+                (n.category || "未分類") === selectedCategory && 
+                (n.subcategory || "一般") === selectedSubcategory
+            );
+            
+            const draggedNote = currentList[dragItem.current];
+            const overNote = currentList[dragOverItem.current];
+            
+            let _notes = [...notes];
+            const realDragIndex = _notes.findIndex(n => n.id === draggedNote.id);
+            const noteContent = _notes[realDragIndex];
+
+            // 先移除
+            _notes.splice(realDragIndex, 1);
+            // 找出目標位置 (插入到目標筆記原本的位置)
+            const realOverIndex = _notes.findIndex(n => n.id === overNote.id);
+            _notes.splice(realOverIndex, 0, noteContent);
+            
+            setNotes(_notes);
+        }
+        
+        dragItem.current = null;
+        dragOverItem.current = null;
+    };
+
+    // [新增] 手機觸控拖曳邏輯
+    const handleTouchStart = (index) => {
+        dragItem.current = index;
+    };
+    
+    const handleTouchMove = (e) => {
+        // 防止手機畫面跟著捲動 (僅當按住手把時)
+        if (e.cancelable) e.preventDefault();
+        
+        // 取得手指目前位置的元素
+        const touch = e.touches[0];
+        const target = document.elementFromPoint(touch.clientX, touch.clientY);
+        
+        // 找到該元素所屬的列表項目 (透過 data-index)
+        const row = target?.closest('[data-index]');
+        if (row) {
+             const idx = parseInt(row.dataset.index, 10);
+             if (!isNaN(idx)) dragOverItem.current = idx;
+        }
+    };
+
+    const handleTouchEnd = () => {
+        handleSort();
+    };
 
     // 長按偵測 Ref
     const pressTimer = useRef(null);
@@ -753,11 +841,11 @@ const AllNotesModal = ({ notes, onClose, onItemClick, onDelete, viewLevel, setVi
                 {!searchTerm && (
                     <>
                         {/* Level 1: 大分類列表 */}
-                        {viewLevel === 'categories' && categories.map(cat => {
-                            // 計算該分類下的筆記數，若是 0 則顯示 (空) 提示
+                        {viewLevel === 'categories' && categories.map((cat, index) => {
                             const count = notes.filter(n => (n.category || "未分類") === cat).length;
                             return (
                                 <div key={cat} 
+                                     data-index={index} // [關鍵] 用於觸控定位
                                      {...bindLongPress(
                                          () => handleDeleteCategory(cat),
                                          () => {
@@ -766,21 +854,40 @@ const AllNotesModal = ({ notes, onClose, onItemClick, onDelete, viewLevel, setVi
                                              window.history.pushState({ page: 'modal', level: 'subcategories', time: Date.now() }, '', '');
                                          }
                                      )}
-                                     className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 mb-3 flex justify-between items-center cursor-pointer hover:border-stone-300 active:scale-[0.98] transition-transform select-none">
-                                    <div className="flex items-baseline gap-2">
+                                     className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-3 flex items-center cursor-pointer hover:border-stone-300 select-none">
+                                    
+                                    <div className="flex-1 flex items-baseline gap-2">
                                         <span className="font-bold text-lg text-stone-800">{cat}</span>
                                         {count === 0 && <span className="text-xs text-stone-400 bg-stone-100 px-2 py-0.5 rounded-full">空 (長按刪除)</span>}
                                     </div>
-                                    <IconBase d="M9 18l6-6-6-6" className="text-stone-300 w-5 h-5" />
+
+                                    <div className="flex items-center gap-3">
+                                        <IconBase d="M9 18l6-6-6-6" className="text-stone-300 w-5 h-5" />
+                                        {/* 拖曳手把 */}
+                                        <div className="p-2 -mr-2 text-stone-300 hover:text-stone-500 cursor-grab touch-none active:text-stone-800"
+                                             onTouchStart={() => handleTouchStart(index)}
+                                             onTouchMove={handleTouchMove}
+                                             onTouchEnd={handleTouchEnd}
+                                             onMouseDown={() => { dragItem.current = index; }} // 電腦版滑鼠支援
+                                             draggable
+                                             onDragStart={() => (dragItem.current = index)}
+                                             onDragEnter={() => (dragOverItem.current = index)}
+                                             onDragEnd={handleSort}
+                                             onDragOver={(e) => e.preventDefault()}
+                                             onClick={(e) => e.stopPropagation()}>
+                                            <GripVertical className="w-6 h-6" />
+                                        </div>
+                                    </div>
                                 </div>
                             );
                         })}
 
                         {/* Level 2: 次分類列表 */}
-                        {viewLevel === 'subcategories' && subcategories.map(sub => {
+                        {viewLevel === 'subcategories' && subcategories.map((sub, index) => {
                             const count = notes.filter(n => (n.category || "未分類") === selectedCategory && (n.subcategory || "一般") === sub).length;
                             return (
                                 <div key={sub} 
+                                     data-index={index}
                                      {...bindLongPress(
                                          () => handleDeleteSubcategory(sub),
                                          () => {
@@ -789,27 +896,66 @@ const AllNotesModal = ({ notes, onClose, onItemClick, onDelete, viewLevel, setVi
                                              window.history.pushState({ page: 'modal', level: 'notes', time: Date.now() }, '', '');
                                          }
                                      )}
-                                     className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 mb-3 flex justify-between items-center cursor-pointer hover:border-stone-300 active:scale-[0.98] transition-transform select-none">
-                                    <div className="flex items-baseline gap-2">
+                                     className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-3 flex items-center cursor-pointer hover:border-stone-300 select-none">
+                                    
+                                    <div className="flex-1 flex items-baseline gap-2">
                                         <span className="font-medium text-lg text-stone-700">{sub}</span>
                                         {count === 0 && <span className="text-xs text-stone-400 bg-stone-100 px-2 py-0.5 rounded-full">空 (長按刪除)</span>}
                                     </div>
-                                    <IconBase d="M9 18l6-6-6-6" className="text-stone-300 w-5 h-5" />
+                                    
+                                    <div className="flex items-center gap-3">
+                                        <IconBase d="M9 18l6-6-6-6" className="text-stone-300 w-5 h-5" />
+                                        <div className="p-2 -mr-2 text-stone-300 hover:text-stone-500 cursor-grab touch-none active:text-stone-800"
+                                             onTouchStart={() => handleTouchStart(index)}
+                                             onTouchMove={handleTouchMove}
+                                             onTouchEnd={handleTouchEnd}
+                                             onMouseDown={() => { dragItem.current = index; }}
+                                             draggable
+                                             onDragStart={() => (dragItem.current = index)}
+                                             onDragEnter={() => (dragOverItem.current = index)}
+                                             onDragEnd={handleSort}
+                                             onDragOver={(e) => e.preventDefault()}
+                                             onClick={(e) => e.stopPropagation()}>
+                                            <GripVertical className="w-6 h-6" />
+                                        </div>
+                                    </div>
                                 </div>
                             );
                         })}
 
                         {/* Level 3: 最終筆記列表 */}
-                        {viewLevel === 'notes' && targetNotes.map(item => (
-                            <div key={item.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-3 active:scale-[0.99] transition-transform" 
+                        {viewLevel === 'notes' && targetNotes.map((item, index) => (
+                            <div key={item.id} 
+                                 data-index={index}
+                                 className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-3 transition-transform select-none" 
                                  onClick={() => onItemClick(item)}>
-                                <div className="flex justify-between items-center">
-                                    <h4 className="font-bold text-gray-800 text-lg">{item.title}</h4>
-                                    <button onClick={(e) => { e.stopPropagation(); onDelete(item.id); }} className="text-stone-300 hover:text-red-500 p-2">
-                                        <Trash2 className="w-4 h-4"/>
-                                    </button>
+                                
+                                <div className="flex justify-between items-start">
+                                    <div className="flex-1">
+                                        <h4 className="font-bold text-gray-800 text-lg">{item.title}</h4>
+                                        <p className="text-sm text-gray-500 line-clamp-2 mt-2">{item.content}</p>
+                                    </div>
+                                    
+                                    <div className="flex flex-col items-end gap-2 ml-2">
+                                        {/* 拖曳手把 */}
+                                        <div className="p-2 -mr-2 -mt-2 text-stone-300 hover:text-stone-500 cursor-grab touch-none active:text-stone-800"
+                                             onTouchStart={() => handleTouchStart(index)}
+                                             onTouchMove={handleTouchMove}
+                                             onTouchEnd={handleTouchEnd}
+                                             onMouseDown={() => { dragItem.current = index; }}
+                                             draggable
+                                             onDragStart={() => (dragItem.current = index)}
+                                             onDragEnter={() => (dragOverItem.current = index)}
+                                             onDragEnd={handleSort}
+                                             onDragOver={(e) => e.preventDefault()}
+                                             onClick={(e) => e.stopPropagation()}>
+                                            <GripVertical className="w-6 h-6" />
+                                        </div>
+                                        <button onClick={(e) => { e.stopPropagation(); onDelete(item.id); }} className="text-stone-300 hover:text-red-500 p-2 -mr-2">
+                                            <Trash2 className="w-4 h-4"/>
+                                        </button>
+                                    </div>
                                 </div>
-                                <p className="text-sm text-gray-500 line-clamp-2 mt-2">{item.content}</p>
                             </div>
                         ))}
                     </>
@@ -1669,6 +1815,7 @@ function EchoScriptApp() {
             {showAllNotesModal && (
                 <AllNotesModal 
                     notes={notes}
+                    setNotes={setNotes} // [新增] 傳遞設定函式以支援排序
                     categoryMap={categoryMap}
                     setCategoryMap={setCategoryMap}
                     // 關閉時重置狀態
@@ -1716,6 +1863,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

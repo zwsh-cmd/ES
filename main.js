@@ -1036,10 +1036,11 @@ function EchoScriptApp() {
             const savedNotes = JSON.parse(localStorage.getItem('echoScript_AllNotes'));
             let finalNotes;
             
-            if (savedNotes && savedNotes.length > 0 && savedNotes[0].category) {
+            // [修正] 只要是有效的陣列資料就信任它，不檢查 category 是否為空 (避免使用者新增無分類筆記時導致資料被誤刪)
+            if (Array.isArray(savedNotes) && savedNotes.length > 0) {
                 finalNotes = savedNotes;
             } else {
-                console.log("偵測到舊版資料，執行結構升級...");
+                console.log("偵測到無資料或格式錯誤，初始化為預設筆記...");
                 finalNotes = INITIAL_NOTES;
                 localStorage.setItem('echoScript_AllNotes', JSON.stringify(finalNotes));
                 localStorage.removeItem('echoScript_History');
@@ -1686,6 +1687,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

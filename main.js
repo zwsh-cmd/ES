@@ -605,25 +605,23 @@ const AllNotesModal = ({ notes, setNotes, onClose, onItemClick, onDelete, viewLe
 
     // [新增] 執行排序資料更新
     const handleSort = () => {
-        // 防止無效拖曳
         if (dragItem.current === null || dragOverItem.current === null || dragItem.current === dragOverItem.current) {
             dragItem.current = null;
             dragOverItem.current = null;
             return;
         }
 
-        // 1. 處理大分類排序
         if (viewLevel === 'categories') {
              let _categories = Object.keys(categoryMap);
              const draggedItemContent = _categories[dragItem.current];
              _categories.splice(dragItem.current, 1);
              _categories.splice(dragOverItem.current, 0, draggedItemContent);
              
+             // 確實依序重建物件，確保順序被保存
              const newMap = {};
              _categories.forEach(cat => { newMap[cat] = categoryMap[cat]; });
              setCategoryMap(newMap);
         }
-        // 2. 處理次分類排序
         else if (viewLevel === 'subcategories') {
             let _subs = [...(categoryMap[selectedCategory] || [])];
             const draggedItemContent = _subs[dragItem.current];
@@ -634,7 +632,6 @@ const AllNotesModal = ({ notes, setNotes, onClose, onItemClick, onDelete, viewLe
             newMap[selectedCategory] = _subs;
             setCategoryMap(newMap);
         }
-        // 3. 處理筆記排序 (最複雜，因為是在過濾清單中移動，需對應回原始清單)
         else if (viewLevel === 'notes') {
             const currentList = notes.filter(n => 
                 (n.category || "未分類") === selectedCategory && 
@@ -648,9 +645,7 @@ const AllNotesModal = ({ notes, setNotes, onClose, onItemClick, onDelete, viewLe
             const realDragIndex = _notes.findIndex(n => n.id === draggedNote.id);
             const noteContent = _notes[realDragIndex];
 
-            // 先移除
             _notes.splice(realDragIndex, 1);
-            // 找出目標位置 (插入到目標筆記原本的位置)
             const realOverIndex = _notes.findIndex(n => n.id === overNote.id);
             _notes.splice(realOverIndex, 0, noteContent);
             
@@ -660,9 +655,9 @@ const AllNotesModal = ({ notes, setNotes, onClose, onItemClick, onDelete, viewLe
         dragItem.current = null;
         dragOverItem.current = null;
         setDraggingIndex(null); 
-        setDragOverIndex(null); // 重置動畫狀態
+        setDragOverIndex(null);
 
-        // [新增] 排序完成後，標記資料已變更 (觸發備份提醒)
+        // [關鍵修正] 只要有排序，就標記資料已變更，確保退出時提醒備份
         if (setHasDataChangedInSession) setHasDataChangedInSession(true);
     };
 
@@ -720,7 +715,7 @@ const AllNotesModal = ({ notes, setNotes, onClose, onItemClick, onDelete, viewLe
             const newMap = { ...categoryMap };
             delete newMap[cat];
             setCategoryMap(newMap);
-            // [新增] 標記資料已變更 (觸發備份提醒)
+            // [關鍵] 觸發備份提醒
             if (setHasDataChangedInSession) setHasDataChangedInSession(true);
         }
     };
@@ -736,7 +731,7 @@ const AllNotesModal = ({ notes, setNotes, onClose, onItemClick, onDelete, viewLe
             const newMap = { ...categoryMap };
             newMap[selectedCategory] = newMap[selectedCategory].filter(s => s !== sub);
             setCategoryMap(newMap);
-            // [新增] 標記資料已變更 (觸發備份提醒)
+            // [關鍵] 觸發備份提醒
             if (setHasDataChangedInSession) setHasDataChangedInSession(true);
         }
     };
@@ -783,32 +778,32 @@ const AllNotesModal = ({ notes, setNotes, onClose, onItemClick, onDelete, viewLe
             return;
         }
 
-        // 檢查名稱重複
         if (type === 'category' && categoryMap[newName]) { alert("該分類名稱已存在"); return; }
         if (type === 'subcategory' && categoryMap[selectedCategory].includes(newName)) { alert("該次分類名稱已存在"); return; }
 
         if (type === 'category') {
-            // 1. 更新 Map 鍵值 (使用依序重建的方式，確保分類順序不變)
+            // 1. 更新 Map (依序重建，確保舊鍵 'item' 被 'newName' 取代，且順序不變)
             const newMap = {};
             Object.keys(categoryMap).forEach(key => {
                 if (key === item) {
-                    newMap[newName] = categoryMap[item]; // 替換名稱但保留內容
+                    newMap[newName] = categoryMap[item]; 
                 } else {
-                    newMap[key] = categoryMap[key]; // 保留原順序
+                    newMap[key] = categoryMap[key];
                 }
             });
             setCategoryMap(newMap);
             
-            // 2. 更新所有相關筆記
+            // 2. 更新筆記
             const newNotes = notes.map(n => (n.category || "未分類") === item ? { ...n, category: newName } : n);
             setNotes(newNotes);
         } else {
-            // 1. 更新 Map 陣列內容 (map 會自動保留順序)
+            // 1. 更新 Map (次分類)
             const newMap = { ...categoryMap };
             const subs = newMap[selectedCategory].map(s => s === item ? newName : s);
             newMap[selectedCategory] = subs;
             setCategoryMap(newMap);
-            // 2. 更新所有相關筆記
+            
+            // 2. 更新筆記
             const newNotes = notes.map(n => 
                 ((n.category || "未分類") === selectedCategory && (n.subcategory || "一般") === item) 
                 ? { ...n, subcategory: newName } 
@@ -817,7 +812,7 @@ const AllNotesModal = ({ notes, setNotes, onClose, onItemClick, onDelete, viewLe
             setNotes(newNotes);
         }
         
-        // 3. 標記資料已變更 (確保退出前會提醒備份)
+        // [關鍵] 觸發備份提醒
         if (setHasDataChangedInSession) setHasDataChangedInSession(true);
         setContextMenu(null);
     };
@@ -1720,13 +1715,13 @@ function EchoScriptApp() {
     };
 
     const handleBackup = () => {
-        // [修正] 加入 categoryMap 以保存自訂的分類順序與空分類
+        // [修正] 必須備份 categoryMap，否則還原後分類順序會遺失
         const data = { 
             favorites, 
             history, 
             notes, 
             allResponses, 
-            categoryMap, 
+            categoryMap, // <--- 這裡保存了分類順序
             version: "EchoScript_v3", 
             date: new Date().toISOString() 
         };
@@ -1750,11 +1745,13 @@ function EchoScriptApp() {
                 if (data.favorites) setFavorites(data.favorites);
                 if (data.history) setHistory(data.history);
                 if (data.allResponses) setAllResponses(data.allResponses);
-                // [修正] 還原分類順序
+                
+                // [關鍵] 優先還原分類結構，確保順序正確
                 if (data.categoryMap) {
                     setCategoryMap(data.categoryMap);
                     localStorage.setItem('echoScript_CategoryMap', JSON.stringify(data.categoryMap));
                 }
+                
                 if (data.notes) {
                     setNotes(data.notes);
                     showNotification("資料庫還原成功！");
@@ -2027,6 +2024,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

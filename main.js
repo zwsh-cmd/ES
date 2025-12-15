@@ -1298,6 +1298,11 @@ function EchoScriptApp() {
                 // [正常退出] 人在「大分類」，且沒有更上一層的 level 了 -> 關閉視窗回到首頁
                 setShowAllNotesModal(false);
                 setAllNotesViewLevel('categories');
+                
+                // [關鍵修復] 如果資料已變更，關閉視窗回到首頁後，需立刻補上一個歷史紀錄，防止下次按返回直接退出 App
+                if (hasDataChangedInSessionRef.current) {
+                    window.history.pushState({ page: 'home_trap', changed: true, time: Date.now() }, '', '');
+                }
                 return;
             }
 
@@ -1308,6 +1313,11 @@ function EchoScriptApp() {
                 setShowEditModal(false);
                 setShowResponseModal(false);
                 setResponseViewMode('list');
+                
+                // [關鍵修復] 同上，回到首頁時補防護網
+                if (hasDataChangedInSessionRef.current) {
+                    window.history.pushState({ page: 'home_trap', changed: true, time: Date.now() }, '', '');
+                }
                 return;
             }
 
@@ -1710,7 +1720,16 @@ function EchoScriptApp() {
     };
 
     const handleBackup = () => {
-        const data = { favorites, history, notes, allResponses, version: "EchoScript_v3", date: new Date().toISOString() };
+        // [修正] 加入 categoryMap 以保存自訂的分類順序與空分類
+        const data = { 
+            favorites, 
+            history, 
+            notes, 
+            allResponses, 
+            categoryMap, 
+            version: "EchoScript_v3", 
+            date: new Date().toISOString() 
+        };
         const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -1731,6 +1750,11 @@ function EchoScriptApp() {
                 if (data.favorites) setFavorites(data.favorites);
                 if (data.history) setHistory(data.history);
                 if (data.allResponses) setAllResponses(data.allResponses);
+                // [修正] 還原分類順序
+                if (data.categoryMap) {
+                    setCategoryMap(data.categoryMap);
+                    localStorage.setItem('echoScript_CategoryMap', JSON.stringify(data.categoryMap));
+                }
                 if (data.notes) {
                     setNotes(data.notes);
                     showNotification("資料庫還原成功！");
@@ -2003,6 +2027,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

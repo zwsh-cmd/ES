@@ -784,16 +784,22 @@ const AllNotesModal = ({ notes, setNotes, onClose, onItemClick, onDelete, viewLe
         if (type === 'subcategory' && categoryMap[selectedCategory].includes(newName)) { alert("該次分類名稱已存在"); return; }
 
         if (type === 'category') {
-            // 1. 更新 Map 鍵值
-            const newMap = { ...categoryMap };
-            newMap[newName] = newMap[item];
-            delete newMap[item];
+            // 1. 更新 Map 鍵值 (使用依序重建的方式，確保分類順序不變)
+            const newMap = {};
+            Object.keys(categoryMap).forEach(key => {
+                if (key === item) {
+                    newMap[newName] = categoryMap[item]; // 替換名稱但保留內容
+                } else {
+                    newMap[key] = categoryMap[key]; // 保留原順序
+                }
+            });
             setCategoryMap(newMap);
+            
             // 2. 更新所有相關筆記
             const newNotes = notes.map(n => (n.category || "未分類") === item ? { ...n, category: newName } : n);
             setNotes(newNotes);
         } else {
-            // 1. 更新 Map 陣列內容
+            // 1. 更新 Map 陣列內容 (map 會自動保留順序)
             const newMap = { ...categoryMap };
             const subs = newMap[selectedCategory].map(s => s === item ? newName : s);
             newMap[selectedCategory] = subs;
@@ -807,6 +813,7 @@ const AllNotesModal = ({ notes, setNotes, onClose, onItemClick, onDelete, viewLe
             setNotes(newNotes);
         }
         
+        // 3. 標記資料已變更 (確保退出前會提醒備份)
         if (setHasDataChangedInSession) setHasDataChangedInSession(true);
         setContextMenu(null);
     };
@@ -1992,6 +1999,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

@@ -595,6 +595,9 @@ const AllNotesModal = ({ notes, setNotes, onClose, onItemClick, onDelete, viewLe
     const [draggingIndex, setDraggingIndex] = useState(null);
     // [新增] 動畫回饋狀態：記錄目前手指/滑鼠經過的目標索引 (用於顯示插入線)
     const [dragOverIndex, setDragOverIndex] = useState(null);
+    
+    // [新增] 懸浮選單狀態：{ visible, x, y, type, item }
+    const [contextMenu, setContextMenu] = useState(null);
 
     // [新增] 拖曳排序用的 Refs
     const dragItem = useRef(null);
@@ -734,15 +737,19 @@ const AllNotesModal = ({ notes, setNotes, onClose, onItemClick, onDelete, viewLe
         }
     };
 
-    // 長按事件綁定器
+    // 長按事件綁定器 (改良版：支援回傳座標)
     const bindLongPress = (onLongPress, onClick) => {
-        const start = () => {
+        const start = (e) => {
+            // 抓取觸控或滑鼠座標
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
             isLongPress.current = false;
             pressTimer.current = setTimeout(() => {
                 isLongPress.current = true;
                 if (navigator.vibrate) navigator.vibrate(50);
-                onLongPress();
-            }, 600); // 600ms 視為長按
+                onLongPress(clientX, clientY); // 回傳座標給回呼函式
+            }, 600);
         };
         const end = () => { if (pressTimer.current) clearTimeout(pressTimer.current); };
         
@@ -759,6 +766,58 @@ const AllNotesModal = ({ notes, setNotes, onClose, onItemClick, onDelete, viewLe
                 }
             }
         };
+    };
+
+    // [新增] 處理重新命名
+    const handleRename = () => {
+        if (!contextMenu) return;
+        const { type, item } = contextMenu;
+        const newName = prompt(`請輸入新的${type === 'category' ? '分類' : '次分類'}名稱`, item);
+        
+        if (!newName || newName === item) {
+            setContextMenu(null);
+            return;
+        }
+
+        // 檢查名稱重複
+        if (type === 'category' && categoryMap[newName]) { alert("該分類名稱已存在"); return; }
+        if (type === 'subcategory' && categoryMap[selectedCategory].includes(newName)) { alert("該次分類名稱已存在"); return; }
+
+        if (type === 'category') {
+            // 1. 更新 Map 鍵值
+            const newMap = { ...categoryMap };
+            newMap[newName] = newMap[item];
+            delete newMap[item];
+            setCategoryMap(newMap);
+            // 2. 更新所有相關筆記
+            const newNotes = notes.map(n => (n.category || "未分類") === item ? { ...n, category: newName } : n);
+            setNotes(newNotes);
+        } else {
+            // 1. 更新 Map 陣列內容
+            const newMap = { ...categoryMap };
+            const subs = newMap[selectedCategory].map(s => s === item ? newName : s);
+            newMap[selectedCategory] = subs;
+            setCategoryMap(newMap);
+            // 2. 更新所有相關筆記
+            const newNotes = notes.map(n => 
+                ((n.category || "未分類") === selectedCategory && (n.subcategory || "一般") === item) 
+                ? { ...n, subcategory: newName } 
+                : n
+            );
+            setNotes(newNotes);
+        }
+        
+        if (setHasDataChangedInSession) setHasDataChangedInSession(true);
+        setContextMenu(null);
+    };
+
+    // [新增] 處理選單刪除
+    const handleDeleteFromMenu = () => {
+        if (!contextMenu) return;
+        const { type, item } = contextMenu;
+        if (type === 'category') handleDeleteCategory(item);
+        if (type === 'subcategory') handleDeleteSubcategory(item);
+        setContextMenu(null);
     };
 
     // 3. 取得最終筆記列表
@@ -859,12 +918,12 @@ const AllNotesModal = ({ notes, setNotes, onClose, onItemClick, onDelete, viewLe
                         {viewLevel === 'categories' && categories.map((cat, index) => {
                             const count = notes.filter(n => (n.category || "未分類") === cat).length;
                             const isDragging = index === draggingIndex;
-                            const isDragOver = index === dragOverIndex && index !== draggingIndex; // [新增] 判斷是否為目標位置
+                            const isDragOver = index === dragOverIndex && index !== draggingIndex;
                             return (
                                 <div key={cat} 
                                      data-index={index}
                                      {...bindLongPress(
-                                         () => handleDeleteCategory(cat),
+                                         (x, y) => setContextMenu({ visible: true, x, y, type: 'category', item: cat }), // [修改] 長按開啟選單
                                          () => {
                                              setSelectedCategory(cat); 
                                              setViewLevel('subcategories'); 
@@ -879,7 +938,7 @@ const AllNotesModal = ({ notes, setNotes, onClose, onItemClick, onDelete, viewLe
                                     
                                     <div className="flex-1 flex items-baseline gap-2">
                                         <span className="font-bold text-lg text-stone-800">{cat}</span>
-                                        {count === 0 && <span className="text-xs text-stone-400 bg-stone-100 px-2 py-0.5 rounded-full">空 (長按刪除)</span>}
+                                        {count === 0 && <span className="text-xs text-stone-400 bg-stone-100 px-2 py-0.5 rounded-full">空</span>}
                                     </div>
 
                                     <div className="flex items-center gap-3">
@@ -892,7 +951,7 @@ const AllNotesModal = ({ notes, setNotes, onClose, onItemClick, onDelete, viewLe
                                              onMouseDown={(e) => { e.stopPropagation(); dragItem.current = index; }}
                                              draggable
                                              onDragStart={() => (dragItem.current = index)}
-                                             onDragEnter={() => { dragOverItem.current = index; setDragOverIndex(index); }} // [修改] 同步更新 State
+                                             onDragEnter={() => { dragOverItem.current = index; setDragOverIndex(index); }}
                                              onDragEnd={handleSort}
                                              onDragOver={(e) => e.preventDefault()}
                                              onClick={(e) => e.stopPropagation()}>
@@ -907,12 +966,12 @@ const AllNotesModal = ({ notes, setNotes, onClose, onItemClick, onDelete, viewLe
                         {viewLevel === 'subcategories' && subcategories.map((sub, index) => {
                             const count = notes.filter(n => (n.category || "未分類") === selectedCategory && (n.subcategory || "一般") === sub).length;
                             const isDragging = index === draggingIndex;
-                            const isDragOver = index === dragOverIndex && index !== draggingIndex; // [新增]
+                            const isDragOver = index === dragOverIndex && index !== draggingIndex;
                             return (
                                 <div key={sub} 
                                      data-index={index}
                                      {...bindLongPress(
-                                         () => handleDeleteSubcategory(sub),
+                                         (x, y) => setContextMenu({ visible: true, x, y, type: 'subcategory', item: sub }), // [修改] 長按開啟選單
                                          () => {
                                              setSelectedSubcategory(sub); 
                                              setViewLevel('notes'); 
@@ -927,7 +986,7 @@ const AllNotesModal = ({ notes, setNotes, onClose, onItemClick, onDelete, viewLe
                                     
                                     <div className="flex-1 flex items-baseline gap-2">
                                         <span className="font-medium text-lg text-stone-700">{sub}</span>
-                                        {count === 0 && <span className="text-xs text-stone-400 bg-stone-100 px-2 py-0.5 rounded-full">空 (長按刪除)</span>}
+                                        {count === 0 && <span className="text-xs text-stone-400 bg-stone-100 px-2 py-0.5 rounded-full">空</span>}
                                     </div>
                                     
                                     <div className="flex items-center gap-3">
@@ -939,7 +998,7 @@ const AllNotesModal = ({ notes, setNotes, onClose, onItemClick, onDelete, viewLe
                                              onMouseDown={(e) => { e.stopPropagation(); dragItem.current = index; }}
                                              draggable
                                              onDragStart={() => (dragItem.current = index)}
-                                             onDragEnter={() => { dragOverItem.current = index; setDragOverIndex(index); }} // [修改]
+                                             onDragEnter={() => { dragOverItem.current = index; setDragOverIndex(index); }}
                                              onDragEnd={handleSort}
                                              onDragOver={(e) => e.preventDefault()}
                                              onClick={(e) => e.stopPropagation()}>
@@ -996,6 +1055,31 @@ const AllNotesModal = ({ notes, setNotes, onClose, onItemClick, onDelete, viewLe
                     </>
                 )}
             </div>
+
+            {/* [新增] 懸浮操作選單 */}
+            {contextMenu && (
+                <>
+                    {/* 背景遮罩：點擊空白處關閉選單 */}
+                    <div className="fixed inset-0 z-[60]" onClick={() => setContextMenu(null)} />
+                    
+                    {/* 選單本體：根據滑鼠/手指座標定位 */}
+                    <div 
+                        className="fixed z-[70] bg-white rounded-xl shadow-xl border border-stone-200 overflow-hidden min-w-[140px] animate-in fade-in zoom-in-95 duration-100 flex flex-col"
+                        style={{ 
+                            // 智慧定位：防止選單超出螢幕邊界
+                            top: Math.min(contextMenu.y, window.innerHeight - 100), 
+                            left: Math.min(contextMenu.x, window.innerWidth - 140) 
+                        }}
+                    >
+                        <button onClick={handleRename} className="w-full text-left px-4 py-3 hover:bg-stone-50 text-stone-700 font-bold text-sm border-b border-stone-100 flex items-center gap-2">
+                            <Edit className="w-4 h-4"/> 重新命名
+                        </button>
+                        <button onClick={handleDeleteFromMenu} className="w-full text-left px-4 py-3 hover:bg-red-50 text-red-600 font-bold text-sm flex items-center gap-2">
+                            <Trash2 className="w-4 h-4"/> 刪除
+                        </button>
+                    </div>
+                </>
+            )}
         </div>
     );
 };
@@ -1908,6 +1992,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

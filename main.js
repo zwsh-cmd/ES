@@ -593,6 +593,8 @@ const AllNotesModal = ({ notes, setNotes, onClose, onItemClick, onDelete, viewLe
     
     // [新增] 視覺回饋狀態：記錄目前正在拖曳的項目索引
     const [draggingIndex, setDraggingIndex] = useState(null);
+    // [新增] 動畫回饋狀態：記錄目前手指/滑鼠經過的目標索引 (用於顯示插入線)
+    const [dragOverIndex, setDragOverIndex] = useState(null);
 
     // [新增] 拖曳排序用的 Refs
     const dragItem = useRef(null);
@@ -654,7 +656,8 @@ const AllNotesModal = ({ notes, setNotes, onClose, onItemClick, onDelete, viewLe
         
         dragItem.current = null;
         dragOverItem.current = null;
-        setDraggingIndex(null); // 重置視覺狀態
+        setDraggingIndex(null); 
+        setDragOverIndex(null); // 重置動畫狀態
     };
 
     // [新增] 手機觸控拖曳邏輯
@@ -676,7 +679,10 @@ const AllNotesModal = ({ notes, setNotes, onClose, onItemClick, onDelete, viewLe
         const row = target?.closest('[data-index]');
         if (row) {
              const idx = parseInt(row.dataset.index, 10);
-             if (!isNaN(idx)) dragOverItem.current = idx;
+             if (!isNaN(idx)) {
+                 dragOverItem.current = idx;
+                 setDragOverIndex(idx); // [關鍵] 觸發畫面更新，顯示插入位置
+             }
         }
     };
 
@@ -849,7 +855,8 @@ const AllNotesModal = ({ notes, setNotes, onClose, onItemClick, onDelete, viewLe
                         {/* Level 1: 大分類列表 */}
                         {viewLevel === 'categories' && categories.map((cat, index) => {
                             const count = notes.filter(n => (n.category || "未分類") === cat).length;
-                            const isDragging = index === draggingIndex; // 判斷是否正在拖曳
+                            const isDragging = index === draggingIndex;
+                            const isDragOver = index === dragOverIndex && index !== draggingIndex; // [新增] 判斷是否為目標位置
                             return (
                                 <div key={cat} 
                                      data-index={index}
@@ -861,7 +868,11 @@ const AllNotesModal = ({ notes, setNotes, onClose, onItemClick, onDelete, viewLe
                                              window.history.pushState({ page: 'modal', level: 'subcategories', time: Date.now() }, '', '');
                                          }
                                      )}
-                                     className={`${isDragging ? 'bg-stone-100 border-stone-400 scale-[1.02]' : 'bg-white border-gray-100'} p-4 rounded-xl shadow-sm border mb-3 flex items-center cursor-pointer hover:border-stone-300 select-none transition-all`}>
+                                     className={`
+                                        ${isDragging ? 'bg-stone-100 border-stone-400 scale-[1.02] z-20' : 'bg-white border-gray-100'} 
+                                        ${isDragOver ? 'border-t-[3px] border-t-[#2c3e50] mt-2 transition-all duration-200' : ''} 
+                                        p-4 rounded-xl shadow-sm border mb-3 flex items-center cursor-pointer hover:border-stone-300 select-none transition-all
+                                     `}>
                                     
                                     <div className="flex-1 flex items-baseline gap-2">
                                         <span className="font-bold text-lg text-stone-800">{cat}</span>
@@ -872,13 +883,13 @@ const AllNotesModal = ({ notes, setNotes, onClose, onItemClick, onDelete, viewLe
                                         <IconBase d="M9 18l6-6-6-6" className="text-stone-300 w-5 h-5" />
                                         {/* 拖曳手把 */}
                                         <div className="p-2 -mr-2 text-stone-300 hover:text-stone-500 cursor-grab touch-none active:text-stone-800"
-                                             onTouchStart={(e) => handleTouchStart(e, index)} // [修改] 傳遞 event
+                                             onTouchStart={(e) => handleTouchStart(e, index)}
                                              onTouchMove={handleTouchMove}
                                              onTouchEnd={handleTouchEnd}
-                                             onMouseDown={(e) => { e.stopPropagation(); dragItem.current = index; }} // [修改] 阻止滑鼠冒泡
+                                             onMouseDown={(e) => { e.stopPropagation(); dragItem.current = index; }}
                                              draggable
                                              onDragStart={() => (dragItem.current = index)}
-                                             onDragEnter={() => (dragOverItem.current = index)}
+                                             onDragEnter={() => { dragOverItem.current = index; setDragOverIndex(index); }} // [修改] 同步更新 State
                                              onDragEnd={handleSort}
                                              onDragOver={(e) => e.preventDefault()}
                                              onClick={(e) => e.stopPropagation()}>
@@ -893,6 +904,7 @@ const AllNotesModal = ({ notes, setNotes, onClose, onItemClick, onDelete, viewLe
                         {viewLevel === 'subcategories' && subcategories.map((sub, index) => {
                             const count = notes.filter(n => (n.category || "未分類") === selectedCategory && (n.subcategory || "一般") === sub).length;
                             const isDragging = index === draggingIndex;
+                            const isDragOver = index === dragOverIndex && index !== draggingIndex; // [新增]
                             return (
                                 <div key={sub} 
                                      data-index={index}
@@ -904,7 +916,11 @@ const AllNotesModal = ({ notes, setNotes, onClose, onItemClick, onDelete, viewLe
                                              window.history.pushState({ page: 'modal', level: 'notes', time: Date.now() }, '', '');
                                          }
                                      )}
-                                     className={`${isDragging ? 'bg-stone-100 border-stone-400 scale-[1.02]' : 'bg-white border-gray-100'} p-4 rounded-xl shadow-sm border mb-3 flex items-center cursor-pointer hover:border-stone-300 select-none transition-all`}>
+                                     className={`
+                                        ${isDragging ? 'bg-stone-100 border-stone-400 scale-[1.02] z-20' : 'bg-white border-gray-100'} 
+                                        ${isDragOver ? 'border-t-[3px] border-t-[#2c3e50] mt-2 transition-all duration-200' : ''}
+                                        p-4 rounded-xl shadow-sm border mb-3 flex items-center cursor-pointer hover:border-stone-300 select-none transition-all
+                                     `}>
                                     
                                     <div className="flex-1 flex items-baseline gap-2">
                                         <span className="font-medium text-lg text-stone-700">{sub}</span>
@@ -920,7 +936,7 @@ const AllNotesModal = ({ notes, setNotes, onClose, onItemClick, onDelete, viewLe
                                              onMouseDown={(e) => { e.stopPropagation(); dragItem.current = index; }}
                                              draggable
                                              onDragStart={() => (dragItem.current = index)}
-                                             onDragEnter={() => (dragOverItem.current = index)}
+                                             onDragEnter={() => { dragOverItem.current = index; setDragOverIndex(index); }} // [修改]
                                              onDragEnd={handleSort}
                                              onDragOver={(e) => e.preventDefault()}
                                              onClick={(e) => e.stopPropagation()}>
@@ -934,10 +950,15 @@ const AllNotesModal = ({ notes, setNotes, onClose, onItemClick, onDelete, viewLe
                         {/* Level 3: 最終筆記列表 */}
                         {viewLevel === 'notes' && targetNotes.map((item, index) => {
                             const isDragging = index === draggingIndex;
+                            const isDragOver = index === dragOverIndex && index !== draggingIndex; // [新增]
                             return (
                                 <div key={item.id} 
                                      data-index={index}
-                                     className={`${isDragging ? 'bg-stone-100 border-stone-400 scale-[1.02]' : 'bg-white border-gray-100'} p-4 rounded-xl shadow-sm border mb-3 transition-all select-none`}
+                                     className={`
+                                        ${isDragging ? 'bg-stone-100 border-stone-400 scale-[1.02] z-20' : 'bg-white border-gray-100'} 
+                                        ${isDragOver ? 'border-t-[3px] border-t-[#2c3e50] mt-2 transition-all duration-200' : ''}
+                                        p-4 rounded-xl shadow-sm border mb-3 transition-all select-none
+                                     `}
                                      onClick={() => onItemClick(item)}>
                                     
                                     <div className="flex justify-between items-start">
@@ -955,7 +976,7 @@ const AllNotesModal = ({ notes, setNotes, onClose, onItemClick, onDelete, viewLe
                                                  onMouseDown={(e) => { e.stopPropagation(); dragItem.current = index; }}
                                                  draggable
                                                  onDragStart={() => (dragItem.current = index)}
-                                                 onDragEnter={() => (dragOverItem.current = index)}
+                                                 onDragEnter={() => { dragOverItem.current = index; setDragOverIndex(index); }} // [修改]
                                                  onDragEnd={handleSort}
                                                  onDragOver={(e) => e.preventDefault()}
                                                  onClick={(e) => e.stopPropagation()}>
@@ -1874,6 +1895,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

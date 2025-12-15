@@ -590,6 +590,9 @@ const AllNotesModal = ({ notes, setNotes, onClose, onItemClick, onDelete, viewLe
     const [selectedCategory, setSelectedCategory] = useState(null);
     const [selectedSubcategory, setSelectedSubcategory] = useState(null);
     const [searchTerm, setSearchTerm] = useState("");
+    
+    // [新增] 視覺回饋狀態：記錄目前正在拖曳的項目索引
+    const [draggingIndex, setDraggingIndex] = useState(null);
 
     // [新增] 拖曳排序用的 Refs
     const dragItem = useRef(null);
@@ -651,11 +654,14 @@ const AllNotesModal = ({ notes, setNotes, onClose, onItemClick, onDelete, viewLe
         
         dragItem.current = null;
         dragOverItem.current = null;
+        setDraggingIndex(null); // 重置視覺狀態
     };
 
     // [新增] 手機觸控拖曳邏輯
-    const handleTouchStart = (index) => {
+    const handleTouchStart = (e, index) => {
+        e.stopPropagation(); // [關鍵] 阻止事件傳遞給父層，避免觸發長按刪除
         dragItem.current = index;
+        setDraggingIndex(index); // 設定視覺回饋
     };
     
     const handleTouchMove = (e) => {
@@ -843,9 +849,10 @@ const AllNotesModal = ({ notes, setNotes, onClose, onItemClick, onDelete, viewLe
                         {/* Level 1: 大分類列表 */}
                         {viewLevel === 'categories' && categories.map((cat, index) => {
                             const count = notes.filter(n => (n.category || "未分類") === cat).length;
+                            const isDragging = index === draggingIndex; // 判斷是否正在拖曳
                             return (
                                 <div key={cat} 
-                                     data-index={index} // [關鍵] 用於觸控定位
+                                     data-index={index}
                                      {...bindLongPress(
                                          () => handleDeleteCategory(cat),
                                          () => {
@@ -854,7 +861,7 @@ const AllNotesModal = ({ notes, setNotes, onClose, onItemClick, onDelete, viewLe
                                              window.history.pushState({ page: 'modal', level: 'subcategories', time: Date.now() }, '', '');
                                          }
                                      )}
-                                     className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-3 flex items-center cursor-pointer hover:border-stone-300 select-none">
+                                     className={`${isDragging ? 'bg-stone-100 border-stone-400 scale-[1.02]' : 'bg-white border-gray-100'} p-4 rounded-xl shadow-sm border mb-3 flex items-center cursor-pointer hover:border-stone-300 select-none transition-all`}>
                                     
                                     <div className="flex-1 flex items-baseline gap-2">
                                         <span className="font-bold text-lg text-stone-800">{cat}</span>
@@ -865,10 +872,10 @@ const AllNotesModal = ({ notes, setNotes, onClose, onItemClick, onDelete, viewLe
                                         <IconBase d="M9 18l6-6-6-6" className="text-stone-300 w-5 h-5" />
                                         {/* 拖曳手把 */}
                                         <div className="p-2 -mr-2 text-stone-300 hover:text-stone-500 cursor-grab touch-none active:text-stone-800"
-                                             onTouchStart={() => handleTouchStart(index)}
+                                             onTouchStart={(e) => handleTouchStart(e, index)} // [修改] 傳遞 event
                                              onTouchMove={handleTouchMove}
                                              onTouchEnd={handleTouchEnd}
-                                             onMouseDown={() => { dragItem.current = index; }} // 電腦版滑鼠支援
+                                             onMouseDown={(e) => { e.stopPropagation(); dragItem.current = index; }} // [修改] 阻止滑鼠冒泡
                                              draggable
                                              onDragStart={() => (dragItem.current = index)}
                                              onDragEnter={() => (dragOverItem.current = index)}
@@ -885,6 +892,7 @@ const AllNotesModal = ({ notes, setNotes, onClose, onItemClick, onDelete, viewLe
                         {/* Level 2: 次分類列表 */}
                         {viewLevel === 'subcategories' && subcategories.map((sub, index) => {
                             const count = notes.filter(n => (n.category || "未分類") === selectedCategory && (n.subcategory || "一般") === sub).length;
+                            const isDragging = index === draggingIndex;
                             return (
                                 <div key={sub} 
                                      data-index={index}
@@ -896,7 +904,7 @@ const AllNotesModal = ({ notes, setNotes, onClose, onItemClick, onDelete, viewLe
                                              window.history.pushState({ page: 'modal', level: 'notes', time: Date.now() }, '', '');
                                          }
                                      )}
-                                     className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-3 flex items-center cursor-pointer hover:border-stone-300 select-none">
+                                     className={`${isDragging ? 'bg-stone-100 border-stone-400 scale-[1.02]' : 'bg-white border-gray-100'} p-4 rounded-xl shadow-sm border mb-3 flex items-center cursor-pointer hover:border-stone-300 select-none transition-all`}>
                                     
                                     <div className="flex-1 flex items-baseline gap-2">
                                         <span className="font-medium text-lg text-stone-700">{sub}</span>
@@ -906,10 +914,10 @@ const AllNotesModal = ({ notes, setNotes, onClose, onItemClick, onDelete, viewLe
                                     <div className="flex items-center gap-3">
                                         <IconBase d="M9 18l6-6-6-6" className="text-stone-300 w-5 h-5" />
                                         <div className="p-2 -mr-2 text-stone-300 hover:text-stone-500 cursor-grab touch-none active:text-stone-800"
-                                             onTouchStart={() => handleTouchStart(index)}
+                                             onTouchStart={(e) => handleTouchStart(e, index)}
                                              onTouchMove={handleTouchMove}
                                              onTouchEnd={handleTouchEnd}
-                                             onMouseDown={() => { dragItem.current = index; }}
+                                             onMouseDown={(e) => { e.stopPropagation(); dragItem.current = index; }}
                                              draggable
                                              onDragStart={() => (dragItem.current = index)}
                                              onDragEnter={() => (dragOverItem.current = index)}
@@ -924,40 +932,43 @@ const AllNotesModal = ({ notes, setNotes, onClose, onItemClick, onDelete, viewLe
                         })}
 
                         {/* Level 3: 最終筆記列表 */}
-                        {viewLevel === 'notes' && targetNotes.map((item, index) => (
-                            <div key={item.id} 
-                                 data-index={index}
-                                 className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-3 transition-transform select-none" 
-                                 onClick={() => onItemClick(item)}>
-                                
-                                <div className="flex justify-between items-start">
-                                    <div className="flex-1">
-                                        <h4 className="font-bold text-gray-800 text-lg">{item.title}</h4>
-                                        <p className="text-sm text-gray-500 line-clamp-2 mt-2">{item.content}</p>
-                                    </div>
+                        {viewLevel === 'notes' && targetNotes.map((item, index) => {
+                            const isDragging = index === draggingIndex;
+                            return (
+                                <div key={item.id} 
+                                     data-index={index}
+                                     className={`${isDragging ? 'bg-stone-100 border-stone-400 scale-[1.02]' : 'bg-white border-gray-100'} p-4 rounded-xl shadow-sm border mb-3 transition-all select-none`}
+                                     onClick={() => onItemClick(item)}>
                                     
-                                    <div className="flex flex-col items-end gap-2 ml-2">
-                                        {/* 拖曳手把 */}
-                                        <div className="p-2 -mr-2 -mt-2 text-stone-300 hover:text-stone-500 cursor-grab touch-none active:text-stone-800"
-                                             onTouchStart={() => handleTouchStart(index)}
-                                             onTouchMove={handleTouchMove}
-                                             onTouchEnd={handleTouchEnd}
-                                             onMouseDown={() => { dragItem.current = index; }}
-                                             draggable
-                                             onDragStart={() => (dragItem.current = index)}
-                                             onDragEnter={() => (dragOverItem.current = index)}
-                                             onDragEnd={handleSort}
-                                             onDragOver={(e) => e.preventDefault()}
-                                             onClick={(e) => e.stopPropagation()}>
-                                            <GripVertical className="w-6 h-6" />
+                                    <div className="flex justify-between items-start">
+                                        <div className="flex-1">
+                                            <h4 className="font-bold text-gray-800 text-lg">{item.title}</h4>
+                                            <p className="text-sm text-gray-500 line-clamp-2 mt-2">{item.content}</p>
                                         </div>
-                                        <button onClick={(e) => { e.stopPropagation(); onDelete(item.id); }} className="text-stone-300 hover:text-red-500 p-2 -mr-2">
-                                            <Trash2 className="w-4 h-4"/>
-                                        </button>
+                                        
+                                        <div className="flex flex-col items-end gap-2 ml-2">
+                                            {/* 拖曳手把 */}
+                                            <div className="p-2 -mr-2 -mt-2 text-stone-300 hover:text-stone-500 cursor-grab touch-none active:text-stone-800"
+                                                 onTouchStart={(e) => handleTouchStart(e, index)}
+                                                 onTouchMove={handleTouchMove}
+                                                 onTouchEnd={handleTouchEnd}
+                                                 onMouseDown={(e) => { e.stopPropagation(); dragItem.current = index; }}
+                                                 draggable
+                                                 onDragStart={() => (dragItem.current = index)}
+                                                 onDragEnter={() => (dragOverItem.current = index)}
+                                                 onDragEnd={handleSort}
+                                                 onDragOver={(e) => e.preventDefault()}
+                                                 onClick={(e) => e.stopPropagation()}>
+                                                <GripVertical className="w-6 h-6" />
+                                            </div>
+                                            <button onClick={(e) => { e.stopPropagation(); onDelete(item.id); }} className="text-stone-300 hover:text-red-500 p-2 -mr-2">
+                                                <Trash2 className="w-4 h-4"/>
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </>
                 )}
             </div>
@@ -1863,6 +1874,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

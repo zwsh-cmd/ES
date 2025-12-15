@@ -1176,13 +1176,15 @@ function EchoScriptApp() {
 
     const handleSaveNote = (updatedNote) => {
         const now = new Date().toISOString();
-        let targetId; // [新增] 記錄目標 ID
+        let targetId;
+        let nextNotes;
 
         if (isCreatingNew) {
             const newNote = { ...updatedNote, createdDate: now, modifiedDate: now };
-            setNotes(prev => [newNote, ...prev]);
+            // [修正] 立即計算新的筆記陣列
+            nextNotes = [newNote, ...notes];
+            targetId = newNote.id;
             setCurrentIndex(0);
-            targetId = newNote.id; // 新筆記的 ID
             showNotification("新筆記已建立");
         } else {
             const editedNote = { 
@@ -1190,13 +1192,19 @@ function EchoScriptApp() {
                 createdDate: updatedNote.createdDate || now,
                 modifiedDate: now 
             };
-            setNotes(prev => prev.map(n => n.id === editedNote.id ? editedNote : n));
+            // [修正] 立即計算更新後的筆記陣列
+            nextNotes = notes.map(n => n.id === editedNote.id ? editedNote : n);
+            // 順便更新收藏狀態 (這裡用 setFavorites 即可，非關鍵路徑)
             setFavorites(prev => prev.map(f => f.id === editedNote.id ? { ...f, ...editedNote } : f));
-            targetId = editedNote.id; // 編輯筆記的 ID
+            targetId = editedNote.id;
             showNotification("筆記已更新");
         }
         
-        // [新增] 將此筆記 ID 存入 localStorage，下次開啟 App 時會優先顯示此筆記
+        // 更新 React 狀態
+        setNotes(nextNotes);
+        
+        // [關鍵修正] 強制同步寫入 LocalStorage，防止 App 關閉過快導致資料遺失
+        localStorage.setItem('echoScript_AllNotes', JSON.stringify(nextNotes));
         localStorage.setItem('echoScript_ResumeNoteId', targetId);
         
         setShowEditModal(false);
@@ -1225,17 +1233,28 @@ function EchoScriptApp() {
     };
 
     const handleSaveResponse = (text, responseId) => {
-        setAllResponses(prev => {
-            const noteResponses = prev[currentNote.id] || [];
-            let newNoteResponses;
-            if (responseId) {
-                newNoteResponses = noteResponses.map(r => r.id === responseId ? { ...r, text, timestamp: new Date().toISOString() } : r);
-            } else {
-                const newResponse = { id: Date.now(), text, timestamp: new Date().toISOString() };
-                newNoteResponses = [newResponse, ...noteResponses];
-            }
-            return { ...prev, [currentNote.id]: newNoteResponses };
-        });
+        // [修正] 立即計算新的回應資料
+        const prevResponses = allResponses;
+        const noteResponses = prevResponses[currentNote.id] || [];
+        let newNoteResponses;
+        
+        if (responseId) {
+            newNoteResponses = noteResponses.map(r => r.id === responseId ? { ...r, text, timestamp: new Date().toISOString() } : r);
+        } else {
+            const newResponse = { id: Date.now(), text, timestamp: new Date().toISOString() };
+            newNoteResponses = [newResponse, ...noteResponses];
+        }
+
+        const nextAllResponses = { ...prevResponses, [currentNote.id]: newNoteResponses };
+        
+        // 更新 React 狀態
+        setAllResponses(nextAllResponses);
+        
+        // [關鍵修正] 強制同步寫入 LocalStorage
+        localStorage.setItem('echoScript_AllResponses', JSON.stringify(nextAllResponses));
+        // [新增] 只要有編輯或新增回應，就表示使用者正在關注此筆記，鎖定它！
+        localStorage.setItem('echoScript_ResumeNoteId', currentNote.id);
+
         showNotification("回應已儲存");
     };
 
@@ -1568,6 +1587,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

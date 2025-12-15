@@ -1051,9 +1051,26 @@ function EchoScriptApp() {
             
             setHistory(JSON.parse(localStorage.getItem('echoScript_History') || '[]'));
             setRecentIndices(JSON.parse(localStorage.getItem('echoScript_Recents') || '[]'));
-            // [新增] 讀取洗牌狀態
-            setShuffleDeck(JSON.parse(localStorage.getItem('echoScript_ShuffleDeck') || '[]'));
-            setDeckPointer(parseInt(localStorage.getItem('echoScript_DeckPointer') || '0', 10));
+            
+            // [地基工程] 啟動時立刻檢查：洗牌堆是否健康？
+            let loadedDeck = JSON.parse(localStorage.getItem('echoScript_ShuffleDeck') || '[]');
+            let loadedPointer = parseInt(localStorage.getItem('echoScript_DeckPointer') || '0', 10);
+
+            // [關鍵] 如果數量對不上 (例如剛清除快取)，立刻產生新的洗牌堆
+            // 這能確保接下來的「新增」動作絕對安全，不會崩潰
+            if (loadedDeck.length !== finalNotes.length) {
+                console.log("初始化：偵測到洗牌堆與筆記數量不符，執行自動修復...");
+                loadedDeck = Array.from({length: finalNotes.length}, (_, i) => i);
+                // 執行全域洗牌
+                for (let i = loadedDeck.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [loadedDeck[i], loadedDeck[j]] = [loadedDeck[j], loadedDeck[i]];
+                }
+                loadedPointer = 0;
+            }
+
+            setShuffleDeck(loadedDeck);
+            setDeckPointer(loadedPointer);
 
             if (finalNotes.length > 0) {
                 // [修改] 智慧初始化：檢查是否有「最後編輯」的筆記需要恢復
@@ -1197,60 +1214,68 @@ function EchoScriptApp() {
         const now = new Date().toISOString();
         let targetId;
         let nextNotes;
+        
+        // 取得當前的洗牌狀態 (因初始化已修復，保證正確)
+        let nextDeck = [...shuffleDeck];
+        let nextPointer = deckPointer;
 
         if (isCreatingNew) {
-            const newNote = { ...updatedNote, createdDate: now, modifiedDate: now };
-            // [修正] 立即計算新的筆記陣列
-            nextNotes = [newNote, ...notes];
-            targetId = newNote.id;
-            setCurrentIndex(0);
-
-            // [新增] 智慧插入：不重置洗牌堆，而是將新筆記「插隊」進入現有排程
-            // 1. 因為新筆記佔用了 Index 0，原本在洗牌堆裡的所有舊筆記 Index 都要 +1
-            const adjustedDeck = shuffleDeck.map(i => i + 1);
-
-            // 2. 將新筆記 (Index 0) 隨機插入到「還沒抽到的牌堆」中
-            // deckPointer 是下一次要抽的位置，我們從這裡開始往後隨機找個位置插入
-            // 這樣保證您看過的歷史不會變，但未來的某一張會是這則新筆記
-            const remainingCount = adjustedDeck.length - deckPointer;
-            const insertOffset = Math.floor(Math.random() * (remainingCount + 1));
+            // 1. 準備新筆記資料 (使用 modal 傳來的 ID 或當下產生)
+            const newId = updatedNote.id || Date.now();
+            const newNote = { ...updatedNote, id: newId, createdDate: now, modifiedDate: now };
             
-            // 執行插入
-            adjustedDeck.splice(deckPointer + insertOffset, 0, 0);
-
-            // 3. 更新狀態並立即存入硬碟
-            setShuffleDeck(adjustedDeck);
-            localStorage.setItem('echoScript_ShuffleDeck', JSON.stringify(adjustedDeck));
-            // deckPointer 不需要歸零，完美接續進度
-
+            // 2. 更新筆記列表 (新筆記加入最前面，Index 變為 0)
+            nextNotes = [newNote, ...notes];
+            targetId = newId;
+            
+            // 3. [智慧插入] 
+            
+            // A. 【關鍵】原本洗牌堆裡的所有號碼都要 +1 (因為 0 號被新筆記拿走了)
+            // 這就是確保 "9號" 會自動變成 "10號" 的關鍵代碼！
+            nextDeck = nextDeck.map(i => i + 1);
+            
+            // B. 將新筆記 (Index 0) 隨機插入到「還沒抽完的未來牌堆」中
+            const futureSlots = nextDeck.length - nextPointer;
+            // 隨機選一個插入點 (範圍：目前指標位置 ~ 最後)
+            // 確保新筆記一定會出現在未來，且不影響已經看過的歷史
+            const insertOffset = Math.floor(Math.random() * (futureSlots + 1));
+            const insertPos = nextPointer + insertOffset;
+            
+            nextDeck.splice(insertPos, 0, 0);
+            
+            setCurrentIndex(0); 
             showNotification("新筆記已建立");
+
         } else {
+            // 修改模式：內容更新，順序不動
             const editedNote = { 
                 ...updatedNote, 
-                createdDate: updatedNote.createdDate || now,
+                createdDate: updatedNote.createdDate || now, 
                 modifiedDate: now 
             };
-            // [修正] 立即計算更新後的筆記陣列
             nextNotes = notes.map(n => n.id === editedNote.id ? editedNote : n);
-            // 順便更新收藏狀態 (這裡用 setFavorites 即可，非關鍵路徑)
             setFavorites(prev => prev.map(f => f.id === editedNote.id ? { ...f, ...editedNote } : f));
             targetId = editedNote.id;
+            
             showNotification("筆記已更新");
         }
         
-        // 更新 React 狀態
+        // 4. 同步更新所有狀態與儲存
         setNotes(nextNotes);
+        setShuffleDeck(nextDeck);
+        setDeckPointer(nextPointer);
         
-        // [關鍵修正] 強制同步寫入 LocalStorage，防止 App 關閉過快導致資料遺失
         localStorage.setItem('echoScript_AllNotes', JSON.stringify(nextNotes));
-        localStorage.setItem('echoScript_ResumeNoteId', targetId);
+        localStorage.setItem('echoScript_ShuffleDeck', JSON.stringify(nextDeck));
+        localStorage.setItem('echoScript_DeckPointer', nextPointer.toString());
+        localStorage.setItem('echoScript_ResumeNoteId', String(targetId));
         
         setShowEditModal(false);
     };
 
     const handleDeleteNote = (id) => {
         if (confirm("確定要刪除這則筆記嗎？此動作無法復原。")) {
-            // 1. 先找出這張筆記「刪除前」的 Index (這對數學計算很重要)
+            // 1. 先找出這張筆記「刪除前」的 Index
             const deletedIndex = notes.findIndex(n => n.id === id);
 
             // 2. 執行刪除 (更新筆記列表)
@@ -1263,33 +1288,34 @@ function EchoScriptApp() {
                 setCurrentIndex(nextIdx);
             }
 
-            // 4. [一勞永逸核心] 智慧修正洗牌堆，不重置！
+            // 4. [智慧校正] 
             if (deletedIndex !== -1) {
-                // A. 從洗牌堆中拿掉這張被刪除的牌
-                // 同時，所有「號碼大於」被刪除者的牌，因為前面的位置空出來了，都要 -1 往前補位
+                // A. 修正洗牌堆：
+                //    - 移除被刪除的 index
+                //    - 所有 > deletedIndex 的號碼都 -1 (因為陣列縮短了)
                 const newDeck = shuffleDeck
                     .filter(i => i !== deletedIndex)
                     .map(i => i > deletedIndex ? i - 1 : i);
 
-                // B. 校正目前的指標 (Deck Pointer)
-                // 如果我們刪掉的是「已經看過」的牌 (deletedIndex 在洗牌堆中的位置 < pointer)
-                // 代表我們看過的牌少了一張，所以指標要往回修一格，才不會跳過下一張
+                // B. 修正指標：
+                //    如果被刪除的牌是在「過去」(指標之前)，指標需要 -1，才不會跳過下一張
                 const indexInDeck = shuffleDeck.indexOf(deletedIndex);
                 let newPointer = deckPointer;
                 
                 if (indexInDeck !== -1 && indexInDeck < deckPointer) {
                     newPointer = Math.max(0, deckPointer - 1);
                 }
-                
-                // 防呆：指標絕對不能超過牌堆長度
                 newPointer = Math.min(newPointer, newDeck.length);
 
-                // C. 寫入狀態並立即存入硬碟
+                // C. 寫入狀態與硬碟
                 setShuffleDeck(newDeck);
                 setDeckPointer(newPointer);
                 localStorage.setItem('echoScript_ShuffleDeck', JSON.stringify(newDeck));
                 localStorage.setItem('echoScript_DeckPointer', newPointer.toString());
             }
+            
+            // 確保資料庫同步
+            localStorage.setItem('echoScript_AllNotes', JSON.stringify(newNotes));
 
             showNotification("筆記已刪除");
         }
@@ -1660,6 +1686,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

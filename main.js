@@ -1204,6 +1204,25 @@ function EchoScriptApp() {
             nextNotes = [newNote, ...notes];
             targetId = newNote.id;
             setCurrentIndex(0);
+
+            // [新增] 智慧插入：不重置洗牌堆，而是將新筆記「插隊」進入現有排程
+            // 1. 因為新筆記佔用了 Index 0，原本在洗牌堆裡的所有舊筆記 Index 都要 +1
+            const adjustedDeck = shuffleDeck.map(i => i + 1);
+
+            // 2. 將新筆記 (Index 0) 隨機插入到「還沒抽到的牌堆」中
+            // deckPointer 是下一次要抽的位置，我們從這裡開始往後隨機找個位置插入
+            // 這樣保證您看過的歷史不會變，但未來的某一張會是這則新筆記
+            const remainingCount = adjustedDeck.length - deckPointer;
+            const insertOffset = Math.floor(Math.random() * (remainingCount + 1));
+            
+            // 執行插入
+            adjustedDeck.splice(deckPointer + insertOffset, 0, 0);
+
+            // 3. 更新狀態並立即存入硬碟
+            setShuffleDeck(adjustedDeck);
+            localStorage.setItem('echoScript_ShuffleDeck', JSON.stringify(adjustedDeck));
+            // deckPointer 不需要歸零，完美接續進度
+
             showNotification("新筆記已建立");
         } else {
             const editedNote = { 
@@ -1231,12 +1250,47 @@ function EchoScriptApp() {
 
     const handleDeleteNote = (id) => {
         if (confirm("確定要刪除這則筆記嗎？此動作無法復原。")) {
+            // 1. 先找出這張筆記「刪除前」的 Index (這對數學計算很重要)
+            const deletedIndex = notes.findIndex(n => n.id === id);
+
+            // 2. 執行刪除 (更新筆記列表)
             const newNotes = notes.filter(n => n.id !== id);
             setNotes(newNotes);
+            
+            // 3. 處理畫面顯示
             if (currentNote && currentNote.id === id) {
                 const nextIdx = newNotes.length > 0 ? 0 : -1;
                 setCurrentIndex(nextIdx);
             }
+
+            // 4. [一勞永逸核心] 智慧修正洗牌堆，不重置！
+            if (deletedIndex !== -1) {
+                // A. 從洗牌堆中拿掉這張被刪除的牌
+                // 同時，所有「號碼大於」被刪除者的牌，因為前面的位置空出來了，都要 -1 往前補位
+                const newDeck = shuffleDeck
+                    .filter(i => i !== deletedIndex)
+                    .map(i => i > deletedIndex ? i - 1 : i);
+
+                // B. 校正目前的指標 (Deck Pointer)
+                // 如果我們刪掉的是「已經看過」的牌 (deletedIndex 在洗牌堆中的位置 < pointer)
+                // 代表我們看過的牌少了一張，所以指標要往回修一格，才不會跳過下一張
+                const indexInDeck = shuffleDeck.indexOf(deletedIndex);
+                let newPointer = deckPointer;
+                
+                if (indexInDeck !== -1 && indexInDeck < deckPointer) {
+                    newPointer = Math.max(0, deckPointer - 1);
+                }
+                
+                // 防呆：指標絕對不能超過牌堆長度
+                newPointer = Math.min(newPointer, newDeck.length);
+
+                // C. 寫入狀態並立即存入硬碟
+                setShuffleDeck(newDeck);
+                setDeckPointer(newPointer);
+                localStorage.setItem('echoScript_ShuffleDeck', JSON.stringify(newDeck));
+                localStorage.setItem('echoScript_DeckPointer', newPointer.toString());
+            }
+
             showNotification("筆記已刪除");
         }
     };
@@ -1606,6 +1660,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

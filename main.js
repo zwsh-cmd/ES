@@ -586,7 +586,7 @@ const ResponseModal = ({ note, responses = [], onClose, onSave, onDelete, viewMo
 
 // === 6. 所有筆記列表 Modal (支援分類顯示) ===
 // [修改] 接收 setNotes 以支援排序
-const AllNotesModal = ({ notes, setNotes, onClose, onItemClick, onDelete, viewLevel, setViewLevel, categoryMap, setCategoryMap }) => {
+const AllNotesModal = ({ notes, setNotes, onClose, onItemClick, onDelete, viewLevel, setViewLevel, categoryMap, setCategoryMap, setHasDataChangedInSession }) => {
     const [selectedCategory, setSelectedCategory] = useState(null);
     const [selectedSubcategory, setSelectedSubcategory] = useState(null);
     const [searchTerm, setSearchTerm] = useState("");
@@ -658,6 +658,9 @@ const AllNotesModal = ({ notes, setNotes, onClose, onItemClick, onDelete, viewLe
         dragOverItem.current = null;
         setDraggingIndex(null); 
         setDragOverIndex(null); // 重置動畫狀態
+
+        // [新增] 排序完成後，標記資料已變更 (觸發備份提醒)
+        if (setHasDataChangedInSession) setHasDataChangedInSession(true);
     };
 
     // [新增] 手機觸控拖曳邏輯
@@ -1115,6 +1118,14 @@ function EchoScriptApp() {
     useEffect(() => { responseViewModeRef.current = responseViewMode; }, [responseViewMode]);
 
     // === 原地滯留導航控制器 (Stay-On-Page Logic) ===
+
+    // [新增] 當資料變更時，立刻推入歷史紀錄以攔截退出 (解決新增筆記後直接退出沒反應的問題)
+    useEffect(() => {
+        if (hasDataChangedInSession) {
+            // 建立一個 "trap" 狀態，確保使用者按返回鍵時會觸發 popstate 事件，而不是直接關閉 App
+            window.history.pushState({ page: 'home_trap', changed: true, time: Date.now() }, '', '');
+        }
+    }, [hasDataChangedInSession]);
     
     // 1. 僅在開啟視窗時推入歷史紀錄 (移除首頁強制鎖定，解決無法退出問題)
     useEffect(() => {
@@ -1535,6 +1546,7 @@ function EchoScriptApp() {
             setFavorites(prev => [currentNote, ...prev]);
             showNotification("已加入收藏");
         }
+        setHasDataChangedInSession(true); // [新增] 標記資料已變更 (觸發備份提醒)
     };
 
     const handleSaveResponse = (text, responseId) => {
@@ -1847,9 +1859,10 @@ function EchoScriptApp() {
             {showAllNotesModal && (
                 <AllNotesModal 
                     notes={notes}
-                    setNotes={setNotes} // [新增] 傳遞設定函式以支援排序
+                    setNotes={setNotes} 
                     categoryMap={categoryMap}
                     setCategoryMap={setCategoryMap}
+                    setHasDataChangedInSession={setHasDataChangedInSession} // [新增] 傳遞狀態設定器
                     // 關閉時重置狀態
                     onClose={() => { 
                         setShowAllNotesModal(false); 
@@ -1895,6 +1908,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

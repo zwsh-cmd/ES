@@ -720,6 +720,8 @@ const AllNotesModal = ({ notes, setNotes, onClose, onItemClick, onDelete, viewLe
             const newMap = { ...categoryMap };
             delete newMap[cat];
             setCategoryMap(newMap);
+            // [新增] 標記資料已變更 (觸發備份提醒)
+            if (setHasDataChangedInSession) setHasDataChangedInSession(true);
         }
     };
 
@@ -734,6 +736,8 @@ const AllNotesModal = ({ notes, setNotes, onClose, onItemClick, onDelete, viewLe
             const newMap = { ...categoryMap };
             newMap[selectedCategory] = newMap[selectedCategory].filter(s => s !== sub);
             setCategoryMap(newMap);
+            // [新增] 標記資料已變更 (觸發備份提醒)
+            if (setHasDataChangedInSession) setHasDataChangedInSession(true);
         }
     };
 
@@ -1999,6 +2003,7 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
+
 
 
 

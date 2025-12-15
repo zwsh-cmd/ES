@@ -584,75 +584,11 @@ const ResponseModal = ({ note, responses = [], onClose, onSave, onDelete, viewMo
 };
 
 // === 6. 所有筆記列表 Modal (支援分類顯示) ===
-// [修改] 接收 setNotes 以支援排序
-const AllNotesModal = ({ notes, setNotes, onClose, onItemClick, onDelete, viewLevel, setViewLevel, categoryMap, setCategoryMap }) => {
+// [修改] 接收 categoryMap 以支援保留空分類與刪除
+const AllNotesModal = ({ notes, onClose, onItemClick, onDelete, viewLevel, setViewLevel, categoryMap, setCategoryMap }) => {
     const [selectedCategory, setSelectedCategory] = useState(null);
     const [selectedSubcategory, setSelectedSubcategory] = useState(null);
     const [searchTerm, setSearchTerm] = useState("");
-    
-    // [新增] 管理選單狀態
-    const [contextMenu, setContextMenu] = useState({ visible: false, type: '', item: null, index: -1 });
-
-    // [新增] 處理排序邏輯 (上移/下移)
-    const handleMove = (direction) => {
-        const { type, item } = contextMenu;
-        if (!type || !item) return;
-
-        if (type === 'category') {
-            const keys = Object.keys(categoryMap);
-            const idx = keys.indexOf(item);
-            if (idx === -1) return;
-            const targetIdx = direction === 'up' ? idx - 1 : idx + 1;
-            if (targetIdx < 0 || targetIdx >= keys.length) return;
-
-            // 交換鍵值順序
-            const newKeys = [...keys];
-            [newKeys[idx], newKeys[targetIdx]] = [newKeys[targetIdx], newKeys[idx]];
-            
-            // 重建物件以確保順序
-            const newMap = {};
-            newKeys.forEach(k => newMap[k] = categoryMap[k]);
-            setCategoryMap(newMap);
-        } 
-        else if (type === 'subcategory') {
-            const subs = [...(categoryMap[selectedCategory] || [])];
-            const idx = subs.indexOf(item);
-            if (idx === -1) return;
-            const targetIdx = direction === 'up' ? idx - 1 : idx + 1;
-            if (targetIdx < 0 || targetIdx >= subs.length) return;
-
-            [subs[idx], subs[targetIdx]] = [subs[targetIdx], subs[idx]];
-            setCategoryMap({ ...categoryMap, [selectedCategory]: subs });
-        } 
-        else if (type === 'note') {
-            // 筆記排序比較複雜，因為是在過濾後的清單中移動，但要對應回原始 notes 陣列
-            // 1. 找出目前顯示的清單 (targetNotes)
-            const currentList = notes.filter(n => 
-                (n.category || "未分類") === selectedCategory && 
-                (n.subcategory || "一般") === selectedSubcategory
-            );
-            
-            // 2. 找出目標筆記在顯示清單中的位置
-            const visualIdx = currentList.findIndex(n => n.id === item.id);
-            if (visualIdx === -1) return;
-
-            const targetVisualIdx = direction === 'up' ? visualIdx - 1 : visualIdx + 1;
-            if (targetVisualIdx < 0 || targetVisualIdx >= currentList.length) return;
-
-            // 3. 找出交換對象
-            const swapTargetNote = currentList[targetVisualIdx];
-
-            // 4. 找出兩者在原始 notes 陣列中的真實位置
-            const realIdx1 = notes.findIndex(n => n.id === item.id);
-            const realIdx2 = notes.findIndex(n => n.id === swapTargetNote.id);
-
-            // 5. 在原始陣列中交換
-            const newNotes = [...notes];
-            [newNotes[realIdx1], newNotes[realIdx2]] = [newNotes[realIdx2], newNotes[realIdx1]];
-            setNotes(newNotes);
-        }
-        setContextMenu({ ...contextMenu, visible: false });
-    };
 
     // 長按偵測 Ref
     const pressTimer = useRef(null);
@@ -818,11 +754,12 @@ const AllNotesModal = ({ notes, setNotes, onClose, onItemClick, onDelete, viewLe
                     <>
                         {/* Level 1: 大分類列表 */}
                         {viewLevel === 'categories' && categories.map(cat => {
+                            // 計算該分類下的筆記數，若是 0 則顯示 (空) 提示
                             const count = notes.filter(n => (n.category || "未分類") === cat).length;
                             return (
                                 <div key={cat} 
                                      {...bindLongPress(
-                                         () => setContextMenu({ visible: true, type: 'category', item: cat }), // [修改] 長按開啟選單
+                                         () => handleDeleteCategory(cat),
                                          () => {
                                              setSelectedCategory(cat); 
                                              setViewLevel('subcategories'); 
@@ -832,7 +769,7 @@ const AllNotesModal = ({ notes, setNotes, onClose, onItemClick, onDelete, viewLe
                                      className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 mb-3 flex justify-between items-center cursor-pointer hover:border-stone-300 active:scale-[0.98] transition-transform select-none">
                                     <div className="flex items-baseline gap-2">
                                         <span className="font-bold text-lg text-stone-800">{cat}</span>
-                                        {count === 0 && <span className="text-xs text-stone-400 bg-stone-100 px-2 py-0.5 rounded-full">空</span>}
+                                        {count === 0 && <span className="text-xs text-stone-400 bg-stone-100 px-2 py-0.5 rounded-full">空 (長按刪除)</span>}
                                     </div>
                                     <IconBase d="M9 18l6-6-6-6" className="text-stone-300 w-5 h-5" />
                                 </div>
@@ -845,7 +782,7 @@ const AllNotesModal = ({ notes, setNotes, onClose, onItemClick, onDelete, viewLe
                             return (
                                 <div key={sub} 
                                      {...bindLongPress(
-                                         () => setContextMenu({ visible: true, type: 'subcategory', item: sub }), // [修改] 長按開啟選單
+                                         () => handleDeleteSubcategory(sub),
                                          () => {
                                              setSelectedSubcategory(sub); 
                                              setViewLevel('notes'); 
@@ -855,7 +792,7 @@ const AllNotesModal = ({ notes, setNotes, onClose, onItemClick, onDelete, viewLe
                                      className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 mb-3 flex justify-between items-center cursor-pointer hover:border-stone-300 active:scale-[0.98] transition-transform select-none">
                                     <div className="flex items-baseline gap-2">
                                         <span className="font-medium text-lg text-stone-700">{sub}</span>
-                                        {count === 0 && <span className="text-xs text-stone-400 bg-stone-100 px-2 py-0.5 rounded-full">空</span>}
+                                        {count === 0 && <span className="text-xs text-stone-400 bg-stone-100 px-2 py-0.5 rounded-full">空 (長按刪除)</span>}
                                     </div>
                                     <IconBase d="M9 18l6-6-6-6" className="text-stone-300 w-5 h-5" />
                                 </div>
@@ -864,12 +801,8 @@ const AllNotesModal = ({ notes, setNotes, onClose, onItemClick, onDelete, viewLe
 
                         {/* Level 3: 最終筆記列表 */}
                         {viewLevel === 'notes' && targetNotes.map(item => (
-                            <div key={item.id} 
-                                 {...bindLongPress(
-                                     () => setContextMenu({ visible: true, type: 'note', item: item }), // [新增] 筆記長按排序
-                                     () => onItemClick(item)
-                                 )}
-                                 className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-3 active:scale-[0.99] transition-transform select-none cursor-pointer">
+                            <div key={item.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-3 active:scale-[0.99] transition-transform" 
+                                 onClick={() => onItemClick(item)}>
                                 <div className="flex justify-between items-center">
                                     <h4 className="font-bold text-gray-800 text-lg">{item.title}</h4>
                                     <button onClick={(e) => { e.stopPropagation(); onDelete(item.id); }} className="text-stone-300 hover:text-red-500 p-2">
@@ -882,45 +815,6 @@ const AllNotesModal = ({ notes, setNotes, onClose, onItemClick, onDelete, viewLe
                     </>
                 )}
             </div>
-
-            {/* [新增] 長按管理選單 (Context Menu) */}
-            {contextMenu.visible && (
-                <div className="fixed inset-0 z-50 bg-stone-900/40 backdrop-blur-sm flex items-end sm:items-center justify-center animate-in fade-in" 
-                     onClick={() => setContextMenu({ ...contextMenu, visible: false })}>
-                    <div className="bg-white w-full sm:w-80 sm:rounded-2xl rounded-t-2xl shadow-2xl p-4 flex flex-col gap-2 animate-in slide-in-from-bottom-5" onClick={e => e.stopPropagation()}>
-                        <div className="text-center p-2 border-b border-gray-100 mb-2">
-                            <h3 className="font-bold text-gray-800">
-                                管理 {contextMenu.type === 'note' ? '筆記' : contextMenu.type === 'category' ? '分類' : '次分類'}
-                            </h3>
-                            <p className="text-xs text-gray-500 truncate">
-                                {contextMenu.type === 'note' ? contextMenu.item.title : contextMenu.item}
-                            </p>
-                        </div>
-                        
-                        <button onClick={() => handleMove('up')} className="p-3 bg-stone-50 hover:bg-stone-100 rounded-xl font-bold text-stone-700 flex items-center justify-center gap-2">
-                            ⬆️ 上移
-                        </button>
-                        <button onClick={() => handleMove('down')} className="p-3 bg-stone-50 hover:bg-stone-100 rounded-xl font-bold text-stone-700 flex items-center justify-center gap-2">
-                            ⬇️ 下移
-                        </button>
-                        
-                        {/* 只有當不是筆記時，顯示原本的刪除分類功能 (筆記刪除已有獨立按鈕) */}
-                        {contextMenu.type !== 'note' && (
-                            <button onClick={() => {
-                                if (contextMenu.type === 'category') handleDeleteCategory(contextMenu.item);
-                                if (contextMenu.type === 'subcategory') handleDeleteSubcategory(contextMenu.item);
-                                setContextMenu({ ...contextMenu, visible: false });
-                            }} className="p-3 bg-red-50 hover:bg-red-100 rounded-xl font-bold text-red-600 flex items-center justify-center gap-2">
-                                <Trash2 className="w-4 h-4"/> 刪除{contextMenu.type === 'category' ? '分類' : '次分類'}
-                            </button>
-                        )}
-                        
-                        <button onClick={() => setContextMenu({ ...contextMenu, visible: false })} className="p-3 mt-2 text-gray-400 font-bold">
-                            取消
-                        </button>
-                    </div>
-                </div>
-            )}
         </div>
     );
 };
@@ -1775,7 +1669,6 @@ function EchoScriptApp() {
             {showAllNotesModal && (
                 <AllNotesModal 
                     notes={notes}
-                    setNotes={setNotes} // [新增] 傳遞設定筆記函式，以支援排序
                     categoryMap={categoryMap}
                     setCategoryMap={setCategoryMap}
                     // 關閉時重置狀態
@@ -1823,8 +1716,6 @@ function EchoScriptApp() {
 
 const root = createRoot(document.getElementById('root'));
 root.render(<ErrorBoundary><EchoScriptApp /></ErrorBoundary>);
-
-
 
 
 
